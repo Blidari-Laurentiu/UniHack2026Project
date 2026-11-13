@@ -94,6 +94,8 @@ def test_unknown_ids_404(client):
     assert client.get(f"/lease/analyses/{missing}").json() == {"detail": "analysis not found"}
 
 
-def test_bad_lease_body_422(client):
-    r = client.post("/lease/analyze", json={**LEASE_BODY, "rooms": 0})
+@pytest.mark.parametrize("rooms", [0, 4])
+def test_bad_lease_body_422(client, rooms):
+    # The listings cover 1 to 3 rooms, so pricing could not answer for 4 or more.
+    r = client.post("/lease/analyze", json={**LEASE_BODY, "rooms": rooms})
     assert r.status_code == 422

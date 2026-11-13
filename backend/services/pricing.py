@@ -16,7 +16,12 @@ WINDOW = "12 months"
 
 
 class PricingUnavailable(Exception):
-    """No listings at all for this room count, even city-wide."""
+    """No listings at all for this room count, even city-wide.
+
+    The request model allows only 1 to 3 rooms (schemas.lease.MAX_ROOMS), which the seed
+    covers, so this means the listings table is empty: the seed was not run. Routers turn it
+    into a 503 with {"detail": "..."}.
+    """
 
 
 def verdict_for(diff_pct: float) -> str:

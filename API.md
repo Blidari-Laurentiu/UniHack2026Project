@@ -38,7 +38,7 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 }
 ```
 
-`rooms` is 1 to 5; `ui_language` is `en` or `ro`. CNP, IBAN and ID series are redacted on the server before Gemini and before saving.
+`rooms` is 1 to 3 (Romanian *camere*, living room included), because the listings only cover 1 to 3 rooms; 4 or more gives 422; `ui_language` is `en` or `ro`. CNP, IBAN and ID series are redacted on the server before Gemini and before saving.
 
 `LeaseAnalysis`:
 
