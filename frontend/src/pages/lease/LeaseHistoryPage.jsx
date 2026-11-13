@@ -121,6 +121,7 @@ export default function LeaseHistoryPage() {
                       {v.label}
                     </option>
                   ))}
+                  {verdict !== ALL && !(verdict in VERDICTS) && <option value={verdict}>{verdict}</option>}
                 </select>
               </label>
             </div>
