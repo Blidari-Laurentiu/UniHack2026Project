@@ -5,7 +5,7 @@ Base URL: `http://localhost:8000` (interactive docs at `/docs`). Models live in 
 - **Auth.** "JWT" means the header `Authorization: Bearer <Auth0 access token>`. When `APP_ENV=dev` only, `X-Dev-User: <name>` can replace it. "Public" routes need no auth.
 - **Errors.** Errors are always `{"detail": "..."}`: 401 for a missing or bad token, 404 for an unknown id, and 422 for an invalid body (FastAPI validation; there `detail` is a list).
 - **IDs.** All ids are UUID strings. Times are ISO 8601 with a timezone.
-- **Mocks.** Every endpoint except `/me` and `/health*` currently returns hard-coded mock data (`# MOCK - replace` in the routers). Shapes are final; values are not.
+- **Mocks.** The lease and pricing endpoints (Feature A) still return hard-coded mock data (`# MOCK - replace` in the routers). Shapes are final; values are not. The events and profile endpoints (Feature B) are real and read the database.
 - **Slots.** The availability slots are `weekday_morning`, `weekday_evening`, `weekend_morning`, `weekend_afternoon` and `weekend_evening`.
 
 The endpoint list was inferred from the `api.js` functions in docs/PLAN.md prompt 5, because PLAN.md has no endpoint tables. Change it here first, then in code.
@@ -92,13 +92,18 @@ Use it to fill the neighbourhood dropdown and the median chart. In JSON, the key
 
 | Method | Path | Auth | Request | Response example | Owner |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/events?interest=&from=&to=` | Public | Query parameters, all optional: `interest` (slug), `from` and `to` (ISO datetime) | `[Event]` (below) | B |
+| GET | `/events?interest=&from=&to=` | Public | Query parameters, all optional: `interest` (slug), `from` (ISO datetime, default now, so past events are hidden) and `to` (ISO datetime) | `[Event]` (below), ordered by `starts_at` | B |
 | POST | `/events/{id}/join` | JWT | – | `{"event_id": "e100…01", "status": "waiting"}` | B |
-| POST | `/events/{id}/leave` | JWT | – | `{"event_id": "e100…01", "status": "left"}` | B |
+| POST | `/events/{id}/leave` | JWT | – | `{"event_id": "e100…01", "status": "left"}`; 404 `{"detail": "you have not joined this event"}` | B |
 | POST | `/events/{id}/match` | JWT | – | `{"event_id": "e100…01", "groups": [Group], "unmatched_count": 0}` | B |
-| GET | `/events/{id}/my-group` | JWT | – | `Group` (below); real version: 404 when not grouped yet | B |
+| GET | `/events/{id}/my-group` | JWT | – | `Group` (below); 404 `{"detail": "not in a group yet"}` | B |
 
 An unknown event id gives 404 `{"detail": "event not found"}`.
+
+- **Join.** Joining twice changes nothing. Joining again after leaving puts you at the back of the waiting list.
+- **Match.** Groups everyone who is `waiting` for the event (3 to 5 per group, longest-waiting first) and saves the groups. It returns only the groups made by this call; `unmatched_count` is how many people are still waiting. Fewer than 3 waiting gives `"groups": []`.
+- **Leave.** Leaving a group of 3 dissolves it: the other two go back to `waiting` and are grouped again by the next match.
+- **`signup_count`** counts `waiting` and `grouped` signups. `my_status` is filled in only when the caller is logged in.
 
 `Event`:
 
@@ -116,7 +121,7 @@ An unknown event id gives 404 `{"detail": "event not found"}`.
 }
 ```
 
-`my_status` is `waiting`, `grouped`, `left` or `null`.
+`my_status` is `waiting`, `grouped`, `left` or `null` (never joined, or not logged in).
 
 `Group` (3 to 5 members):
 
@@ -139,7 +144,7 @@ An unknown event id gives 404 `{"detail": "event not found"}`.
 | --- | --- | --- | --- | --- | --- |
 | GET | `/profile/interests` | Public | – | `[{"id": "b100…01", "slug": "theatre", "label": "Theatre"}, ...]` | B |
 | GET | `/profile` | JWT | – | `ProfileOut` (below) | B |
-| PUT | `/profile` | JWT | `{"display_name": "Mei", "interest_slugs": ["board_games", "theatre"], "availability": ["weekday_evening"]}` | `ProfileOut` | B |
+| PUT | `/profile` | JWT | `{"display_name": "Mei", "interest_slugs": ["board_games", "theatre"], "availability": ["weekday_evening"]}` | `ProfileOut`; 422 `{"detail": "unknown interest: x"}` | B |
 
 `ProfileOut`:
 
@@ -152,4 +157,4 @@ An unknown event id gives 404 `{"detail": "event not found"}`.
 }
 ```
 
-The current mock interest slugs are `theatre`, `live_music`, `board_games`, `football`, `hiking` and `language_exchange`.
+`PUT /profile` replaces the whole profile. The seeded interest slugs are `theatre`, `live_music`, `board_games`, `football`, `hiking`, `language_exchange`, `cinema`, `food_drinks`, `art_museums` and `cycling`.

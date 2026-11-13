@@ -71,3 +71,6 @@ create table if not exists reports (
     reason           text not null,
     created_at       timestamptz default now()
 );
+
+-- Sentence shown on the group card, built by services/matching.py.
+alter table event_groups add column if not exists why_you_match text;

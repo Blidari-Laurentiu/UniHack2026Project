@@ -318,3 +318,187 @@ code {
   background: var(--err-bg);
   color: var(--err-text);
 }
+
+/* Forms */
+.form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+.field {
+  display: grid;
+  gap: 0.3rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.field-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0;
+}
+.input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.input:focus-visible,
+.btn:focus-visible,
+.toggle input:focus-visible + span {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+/* Checkbox shown as a pill you tap on or off */
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.toggle {
+  cursor: pointer;
+}
+.toggle input {
+  position: absolute;
+  opacity: 0;
+}
+.toggle span {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.9rem;
+  user-select: none;
+}
+.toggle input:checked + span {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* Events (Person B) */
+.card + .card {
+  margin-top: 1rem;
+}
+.profile-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.profile-summary .chips {
+  margin-top: 0.5rem;
+}
+.chip-soft {
+  background: var(--surface);
+  color: var(--muted);
+}
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 0.5rem;
+}
+.filters .btn {
+  justify-self: start;
+}
+.events {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.event {
+  padding-block: 1rem;
+  border-top: 1px solid var(--border);
+}
+.event-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.event-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.event-title {
+  font-size: 1.05rem;
+}
+.event-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+.event-desc {
+  margin: 0.5rem 0 0;
+}
+.event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.event-actions > .muted {
+  margin-right: auto;
+}
+.notice {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+.group-card {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.group-card h3 {
+  font-size: 1rem;
+}
+.why {
+  font-weight: 600;
+}
+.members {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+}
+.member {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  flex: none;
+}
