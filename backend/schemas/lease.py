@@ -8,11 +8,14 @@ from pydantic import BaseModel, Field
 
 Severity = Literal["low", "medium", "high"]
 
+# The listings only cover 1 to 3 rooms; a larger flat has no median to compare with.
+MAX_ROOMS = 3
+
 
 class LeaseAnalyzeRequest(BaseModel):
     lease_text: str = Field(min_length=50, max_length=50_000)
     neighbourhood: str = Field(min_length=1, max_length=80)
-    rooms: int = Field(ge=1, le=5)
+    rooms: int = Field(ge=1, le=MAX_ROOMS)
     rent_eur: float = Field(gt=0, le=20_000)
     ui_language: Literal["en", "ro"] = "en"
 
