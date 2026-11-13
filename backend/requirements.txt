@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+psycopg[binary]
+psycopg_pool
+pydantic-settings
+PyJWT[crypto]
+google-genai
+python-multipart
+pytest
+httpx
