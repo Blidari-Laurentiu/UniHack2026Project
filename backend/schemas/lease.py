@@ -1,6 +1,6 @@
 """Feature A (Person A): lease check and pricing."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -74,3 +74,9 @@ class NeighbourhoodStat(BaseModel):
     name: str
     median_eur_by_rooms: dict[int, float]
     sample_size: int
+
+
+class TrendPoint(BaseModel):
+    month: date  # first day of the month (UTC)
+    median_eur: float
+    count: int  # listings in that month

@@ -5,9 +5,9 @@ last 12 months: in the neighbourhood when it has at least MIN_SAMPLE listings, o
 city-wide. Pure verdict logic is separate from the SQL so it can be tested without a database.
 """
 
-from psycopg.rows import dict_row
+from psycopg.rows import dict_row, tuple_row
 
-from schemas.lease import NeighbourhoodStat, PriceVerdict
+from schemas.lease import NeighbourhoodStat, PriceVerdict, TrendPoint
 
 MIN_SAMPLE = 5  # fewer listings than this in the neighbourhood -> city-wide median
 FAIR_BAND_PCT = 10.0  # within ±10% of the median is fair
@@ -92,3 +92,83 @@ def neighbourhood_stats(conn) -> list[NeighbourhoodStat]:
             stat.median_eur_by_rooms[row["rooms"]] = round(float(row["median"]), 2)
             stat.sample_size += row["n"]
     return list(stats.values())
+
+
+# ---------- price trend ----------
+#
+# Monthly median rent over the last TREND_MONTHS calendar months (the current one included),
+# in UTC months. With TimescaleDB the points come from the continuous aggregates
+# listings_monthly / listings_monthly_city (db/schema/10_lease.sql); their current month is
+# real-time, so new listings count straight away. On plain Postgres the same shape is
+# computed from listings with date_trunc.
+
+TREND_MONTHS = 12
+TREND_VIEWS = ("listings_monthly", "listings_monthly_city")
+_CUTOFF = (
+    f"(date_trunc('month', now() at time zone 'UTC') - interval '{TREND_MONTHS - 1} months')"
+    " at time zone 'UTC'"
+)
+_HOOD_FILTER = "and lower(neighbourhood) = lower(%(neighbourhood)s)"
+
+
+def trend_sql(city: bool, aggregate: bool) -> str:
+    """SQL for the trend points: month (date), median_eur, n. Oldest month first."""
+    hood = "" if city else _HOOD_FILTER
+    if aggregate:
+        view = "listings_monthly_city" if city else "listings_monthly"
+        return f"""
+select (bucket at time zone 'UTC')::date as month, median_eur, listing_count as n
+from {view}
+where rooms = %(rooms)s {hood}
+  and bucket >= {_CUTOFF}
+order by bucket
+"""
+    return f"""
+select (date_trunc('month', listed_at, 'UTC') at time zone 'UTC')::date as month,
+       percentile_cont(0.5) within group (order by price_eur) as median_eur,
+       count(*) as n
+from listings
+where rooms = %(rooms)s {hood}
+  and listed_at >= {_CUTOFF}
+group by 1
+order by 1
+"""
+
+
+def to_points(rows) -> list[TrendPoint]:
+    """Rows (month, median_eur, n) -> points, oldest first, medians to the cent."""
+    points = [
+        TrendPoint(month=r["month"], median_eur=round(float(r["median_eur"]), 2), count=r["n"])
+        for r in rows
+        if r["n"]
+    ]
+    return sorted(points, key=lambda p: p.month)
+
+
+_aggregate_seen = False  # once the views exist they stay, so only a "yes" is remembered
+
+
+def has_trend_aggregate(conn) -> bool:
+    """True when both continuous aggregates exist (TimescaleDB and schema applied)."""
+    global _aggregate_seen
+    if not _aggregate_seen:
+        # to_regclass also works on plain Postgres, where it returns null.
+        with conn.cursor(row_factory=tuple_row) as cur:
+            (_aggregate_seen,) = cur.execute(
+                "select to_regclass(%s) is not null and to_regclass(%s) is not null", TREND_VIEWS
+            ).fetchone()
+    return _aggregate_seen
+
+
+def price_trend(conn, rooms: int, neighbourhood: str | None = None) -> tuple[list[TrendPoint], str]:
+    """Monthly medians for a room count, in a neighbourhood or city-wide (None or blank).
+
+    Returns (points, source) where source is "continuous_aggregate" or "listings".
+    An unknown neighbourhood gives no points; that is not an error.
+    """
+    city = not (neighbourhood and neighbourhood.strip())
+    aggregate = has_trend_aggregate(conn)
+    params = {"rooms": rooms, "neighbourhood": None if city else neighbourhood.strip()}
+    with conn.cursor(row_factory=dict_row) as cur:
+        rows = cur.execute(trend_sql(city, aggregate), params).fetchall()
+    return to_points(rows), "continuous_aggregate" if aggregate else "listings"

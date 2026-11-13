@@ -9,6 +9,7 @@ import AnalysisHistory from './AnalysisHistory.jsx';
 import AnalysisResult from './AnalysisResult.jsx';
 import LeaseForm, { EMPTY_FORM } from './LeaseForm.jsx';
 import MedianChart from './MedianChart.jsx';
+import TrendChart from './TrendChart.jsx';
 
 function useElapsedSeconds(running) {
   const [seconds, setSeconds] = useState(0);
@@ -132,6 +133,18 @@ export default function LeasePage() {
         <section className="card lease-result-card" ref={resultRef} aria-live="polite">
           <h2>Result</h2>
           <AnalysisResult analysis={result} />
+        </section>
+      )}
+
+      {result && (
+        <section className="card" aria-labelledby="lease-trend-title">
+          <h2 id="lease-trend-title">Price trend</h2>
+          <TrendChart
+            key={result.id}
+            neighbourhoods={neighbourhoods}
+            neighbourhood={result.neighbourhood}
+            rooms={result.rooms}
+          />
         </section>
       )}
 

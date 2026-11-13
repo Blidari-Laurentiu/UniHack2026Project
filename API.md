@@ -87,6 +87,9 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 | Method | Path | Auth | Request | Response example | Owner |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/pricing/neighbourhoods` | Public | – | `[{"name": "Complex Studențesc", "median_eur_by_rooms": {"1": 330.0, "2": 430.0, "3": 560.0}, "sample_size": 28}, ...]` | A |
+| GET | `/pricing/trend?neighbourhood=&rooms=` | Public | Query: `rooms` (required, 1 to 3), `neighbourhood` (optional; leave out or blank for city-wide) | `[{"month": "2025-12-01", "median_eur": 422.5, "count": 46}, ...]`, oldest first, last 12 months (the current month so far); 422 `{"detail": "rooms must be a whole number from 1 to 3."}`; 503 on database error | A |
+
+`/pricing/trend` reads the TimescaleDB continuous aggregates `listings_monthly` / `listings_monthly_city` (header `X-Trend-Source: continuous_aggregate`), or `listings` directly on plain Postgres (`X-Trend-Source: listings`). An unknown neighbourhood returns `[]`.
 
 Use it to fill the neighbourhood dropdown and the median chart. In JSON, the keys of `median_eur_by_rooms` are strings.
 
