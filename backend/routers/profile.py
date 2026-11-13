@@ -1,46 +1,82 @@
-from uuid import UUID
+"""Feature B (Person B): interests and the user's matching profile."""
 
-from fastapi import APIRouter, Depends
+from typing import get_args
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from auth import current_user
+from db import get_conn
+from schemas.common import Slot
 from schemas.events import Interest, ProfileIn, ProfileOut
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
-# MOCK - replace (select from interests)
-MOCK_INTERESTS = [
-    Interest(id=UUID("b1000000-0000-4000-8000-000000000001"), slug="theatre", label="Theatre"),
-    Interest(id=UUID("b1000000-0000-4000-8000-000000000002"), slug="live_music", label="Live music"),
-    Interest(id=UUID("b1000000-0000-4000-8000-000000000003"), slug="board_games", label="Board games"),
-    Interest(id=UUID("b1000000-0000-4000-8000-000000000004"), slug="football", label="Football"),
-    Interest(id=UUID("b1000000-0000-4000-8000-000000000005"), slug="hiking", label="Hiking"),
-    Interest(id=UUID("b1000000-0000-4000-8000-000000000006"), slug="language_exchange", label="Language exchange"),
-]
-_BY_SLUG = {i.slug: i for i in MOCK_INTERESTS}
+SLOT_ORDER = list(get_args(Slot))
+
+
+def load_profile(conn, user_id) -> ProfileOut:
+    user = conn.execute(
+        "select display_name, is_student from users where id = %s", (user_id,)
+    ).fetchone()
+    interests = conn.execute(
+        """
+        select i.id, i.slug, i.label
+        from user_interests ui join interests i on i.id = ui.interest_id
+        where ui.user_id = %s
+        order by i.label
+        """,
+        (user_id,),
+    ).fetchall()
+    slots = {
+        row["slot"]
+        for row in conn.execute("select slot from user_availability where user_id = %s", (user_id,))
+    }
+    return ProfileOut(
+        display_name=user["display_name"],
+        is_student=bool(user["is_student"]),
+        interests=interests,
+        availability=[s for s in SLOT_ORDER if s in slots],
+    )
 
 
 @router.get("/interests", response_model=list[Interest])
-def list_interests():
-    return MOCK_INTERESTS  # MOCK - replace
+def list_interests(conn=Depends(get_conn)):
+    return conn.execute("select id, slug, label from interests order by label").fetchall()
 
 
 @router.get("", response_model=ProfileOut)
-def get_profile(user: dict = Depends(current_user)):
-    # MOCK - replace: join user_interests and user_availability
-    return ProfileOut(
-        display_name=user.get("display_name") or "Mei",
-        is_student=bool(user.get("is_student")),
-        interests=[_BY_SLUG["board_games"], _BY_SLUG["live_music"]],
-        availability=["weekday_evening", "weekend_afternoon"],
-    )
+def get_profile(user: dict = Depends(current_user), conn=Depends(get_conn)):
+    return load_profile(conn, user["id"])
 
 
 @router.put("", response_model=ProfileOut)
-def save_profile(body: ProfileIn, user: dict = Depends(current_user)):
-    # MOCK - replace: update display_name, replace user_interests and user_availability
-    return ProfileOut(
-        display_name=body.display_name,
-        is_student=bool(user.get("is_student")),
-        interests=[_BY_SLUG[s] for s in body.interest_slugs if s in _BY_SLUG],
-        availability=sorted(set(body.availability)),
-    )
+def save_profile(body: ProfileIn, user: dict = Depends(current_user), conn=Depends(get_conn)):
+    display_name = body.display_name.strip()
+    if not display_name:
+        raise HTTPException(status_code=422, detail="display_name must not be empty")
+
+    slugs = list(dict.fromkeys(body.interest_slugs))
+    found = conn.execute("select id, slug from interests where slug = any(%s)", (slugs,)).fetchall()
+    unknown = sorted(set(slugs) - {row["slug"] for row in found})
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"unknown interest: {', '.join(unknown)}")
+
+    user_id = user["id"]
+    conn.execute("update users set display_name = %s where id = %s", (display_name, user_id))
+    conn.execute("delete from user_interests where user_id = %s", (user_id,))
+    conn.execute("delete from user_availability where user_id = %s", (user_id,))
+    with conn.cursor() as cur:
+        if found:
+            cur.executemany(
+                "insert into user_interests (user_id, interest_id) values (%s, %s)",
+                [(user_id, row["id"]) for row in found],
+            )
+        if body.availability:
+            cur.executemany(
+                "insert into user_availability (user_id, slot) values (%s, %s)",
+                [(user_id, slot) for slot in dict.fromkeys(body.availability)],
+            )
+
+    profile = load_profile(conn, user_id)
+    conn.commit()  # before the response, so the next request already sees the change
+    return profile

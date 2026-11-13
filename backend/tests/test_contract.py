@@ -1,4 +1,5 @@
-"""Every endpoint in API.md answers and matches its response model (mocks, no DB)."""
+"""Feature A endpoints answer and match their response models (mocks, no DB), and every
+authed endpoint refuses anonymous callers. Feature B has real endpoints: see test_events_api.py."""
 
 import sys
 from datetime import datetime, timezone
@@ -36,21 +37,19 @@ PROFILE_BODY = {
     "availability": ["weekday_evening"],
 }
 
-AUTHED = [
+MOCKED = [
     ("post", "/lease/analyze", LEASE_BODY),
     ("get", "/lease/analyses", None),
     ("get", f"/lease/analyses/{ANALYSIS_ID}", None),
+    ("get", "/pricing/neighbourhoods", None),
+]
+AUTHED = MOCKED[:3] + [
     ("post", f"/events/{EVENT_ID}/join", None),
     ("post", f"/events/{EVENT_ID}/leave", None),
     ("post", f"/events/{EVENT_ID}/match", None),
     ("get", f"/events/{EVENT_ID}/my-group", None),
     ("get", "/profile", None),
     ("put", "/profile", PROFILE_BODY),
-]
-PUBLIC = [
-    ("get", "/pricing/neighbourhoods", None),
-    ("get", "/events", None),
-    ("get", "/profile/interests", None),
 ]
 
 
@@ -69,7 +68,7 @@ def anon_client():
     app.dependency_overrides.clear()
 
 
-@pytest.mark.parametrize("method,path,body", AUTHED + PUBLIC)
+@pytest.mark.parametrize("method,path,body", MOCKED)
 def test_endpoint_ok(client, method, path, body):
     r = client.request(method, path, json=body)
     assert r.status_code == 200, r.text
@@ -90,22 +89,9 @@ def test_analyze_shape(client):
     assert {"median_eur", "diff_pct", "verdict", "scope", "sample_size"} <= data["price_verdict"].keys()
 
 
-def test_match_groups_sizes(client):
-    data = client.post(f"/events/{EVENT_ID}/match").json()
-    for g in data["groups"]:
-        assert 3 <= len(g["members"]) <= 5
-        assert g["why_you_match"]
-
-
 def test_unknown_ids_404(client):
     missing = "00000000-0000-4000-8000-000000000000"
     assert client.get(f"/lease/analyses/{missing}").json() == {"detail": "analysis not found"}
-    assert client.post(f"/events/{missing}/join").status_code == 404
-
-
-def test_events_filter(client):
-    data = client.get("/events", params={"interest": "theatre"}).json()
-    assert [e["interest"]["slug"] for e in data] == ["theatre"]
 
 
 def test_bad_lease_body_422(client):
