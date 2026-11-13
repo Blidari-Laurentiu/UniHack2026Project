@@ -502,3 +502,298 @@ code {
   font-weight: 600;
   flex: none;
 }
+
+/* Lease check (Person A) */
+.lease-fieldset {
+  display: grid;
+  gap: 1rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.lease-fieldset:disabled {
+  opacity: 0.6;
+}
+.lease-textarea {
+  min-height: 12rem;
+  resize: vertical;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.lease-counter {
+  color: var(--muted);
+}
+.lease-counter-bad,
+.lease-field-error {
+  color: var(--err-text);
+}
+.lease-field-error {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.lease-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  align-items: end;
+}
+.lease-result-card {
+  scroll-margin-top: 4.5rem;
+}
+.lease-login {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+.lease-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  background: var(--bg);
+}
+.lease-spinner {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: lease-spin 0.8s linear infinite;
+}
+@keyframes lease-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lease-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* Tones: each chip also carries its text, colour is only a second cue */
+.lease-tone-ok {
+  --tone-bg: var(--ok-bg);
+  --tone-text: var(--ok-text);
+}
+.lease-tone-warn {
+  --tone-bg: var(--warn-bg);
+  --tone-text: var(--warn-text);
+}
+.lease-tone-err {
+  --tone-bg: var(--err-bg);
+  --tone-text: var(--err-text);
+}
+.lease-tone-info {
+  --tone-bg: #e5eefb;
+  --tone-text: #1a4c97;
+}
+.lease-tone-none {
+  --tone-bg: var(--bg);
+  --tone-text: var(--muted);
+}
+.lease-chip {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: var(--tone-bg);
+  color: var(--tone-text);
+  white-space: nowrap;
+}
+
+/* Result */
+.lease-result-meta {
+  margin-bottom: 1rem;
+}
+.lease-result-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+@media (min-width: 800px) {
+  .lease-result-grid {
+    grid-template-columns: minmax(240px, 1fr) 2fr;
+    align-items: start;
+  }
+}
+.lease-price {
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--tone-text);
+  background: var(--tone-bg);
+}
+.lease-price-head {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+}
+.lease-price-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: var(--tone-text);
+}
+.lease-price-verdict {
+  font-size: 1.4rem;
+  color: var(--tone-text);
+}
+.lease-price-line {
+  color: var(--text);
+}
+.lease-price .chips {
+  margin-bottom: 0.5rem;
+}
+.lease-price .chip {
+  background: var(--surface);
+  white-space: normal;
+}
+.lease-price-note {
+  margin: 0;
+  color: var(--muted);
+}
+.lease-report {
+  min-width: 0;
+}
+.lease-report h3 {
+  font-size: 1rem;
+  margin-top: 1.25rem;
+}
+.lease-report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.lease-report-head h3 {
+  margin: 0;
+}
+.lease-clauses {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.lease-clause {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--tone-text);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.lease-edge-ok {
+  --tone-text: var(--ok-text);
+}
+.lease-edge-warn {
+  --tone-text: var(--warn-text);
+}
+.lease-edge-err {
+  --tone-text: var(--err-text);
+}
+.lease-edge-info {
+  --tone-text: var(--primary);
+}
+.lease-clause p:last-child {
+  margin-bottom: 0;
+}
+.lease-clause-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+.lease-quote {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.85rem;
+  border-left: 3px solid var(--border);
+  background: var(--bg);
+  border-radius: 0 6px 6px 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+}
+.lease-quote::before {
+  content: '„';
+}
+.lease-quote::after {
+  content: '”';
+}
+.lease-suggestion {
+  color: var(--ok-text);
+}
+.lease-missing {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.4rem;
+  overflow-wrap: anywhere;
+}
+.lease-warning {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid currentColor;
+}
+.lease-warning p:last-child {
+  margin-bottom: 0;
+}
+.lease-warning p {
+  margin: 0.4rem 0 0;
+}
+.lease-disclaimer {
+  margin: 1.25rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* History */
+.lease-history-item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 0.5rem;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lease-history li:first-child .lease-history-item {
+  border-top: 0;
+}
+.lease-history-item:hover:not(:disabled) {
+  background: var(--bg);
+}
+.lease-history-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.lease-history-item:disabled {
+  cursor: wait;
+}
+.lease-history-active {
+  background: var(--bg);
+  box-shadow: inset 4px 0 0 var(--primary);
+}
