@@ -89,6 +89,9 @@ export const getMe = () => apiFetch('/me');
 export const analyzeLease = (payload) => apiFetch('/lease/analyze', { method: 'POST', body: payload });
 export const listAnalyses = () => apiFetch('/lease/analyses');
 export const getAnalysis = (id) => apiFetch(`/lease/analyses/${encodeURIComponent(id)}`);
+/** Redacted text sent to Gemini, Gemini's JSON and the price verdict inputs ("How this was checked"). */
+export const getAnalysisDetails = (id) =>
+  apiFetch(`/lease/analyses/${encodeURIComponent(id)}/details`);
 export const getNeighbourhoods = () => apiFetch('/pricing/neighbourhoods');
 /** params: { rooms: 1..3 (required), neighbourhood (optional; leave out for city-wide) } */
 export const getPriceTrend = ({ rooms, neighbourhood } = {}) =>

@@ -1283,3 +1283,205 @@ code {
 .lease-trend-series .lease-trend-line-partial {
   stroke-dasharray: 2 4;
 }
+
+/* Lease: "How this was checked" panel (redacted text, Gemini JSON, SQL) */
+.lease-how {
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+}
+.lease-how-heading {
+  margin: 0;
+  font-size: 1rem;
+}
+.lease-how-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 0.9rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.lease-how-toggle:hover {
+  background: var(--bg);
+}
+.lease-how-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.lease-how-chevron {
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.45rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+.lease-how-toggle[aria-expanded='true'] .lease-how-chevron {
+  transform: rotate(45deg);
+}
+.lease-how-hint {
+  display: block;
+  font-weight: 400;
+}
+.lease-how-body {
+  padding: 0 0.9rem 0.9rem;
+  min-width: 0;
+}
+.lease-how-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 8px;
+  background: var(--bg);
+}
+.lease-how-tab {
+  flex: 1 1 auto; /* one row; each tab shrinks in proportion to its label */
+  min-width: 0;
+  min-height: 40px;
+  line-height: 1.25;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.lease-how-tab:hover {
+  color: var(--text);
+}
+.lease-how-tab[aria-selected='true'] {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+.lease-how-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.lease-how-panel {
+  padding-top: 0.9rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lease-how-panel > p {
+  font-size: 0.95rem;
+}
+.lease-how-subhead {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 0.95rem;
+}
+.lease-how-subhead:first-child {
+  margin-top: 0;
+}
+.lease-how-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.lease-how-bar p {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-size: 0.95rem;
+}
+.lease-how-copy {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.lease-how-scroll {
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.lease-how-scroll:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.lease-how-code {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  font: 0.8rem/1.55 ui-monospace, 'Cascadia Code', Consolas, 'Courier New', monospace;
+  white-space: pre;
+  tab-size: 2;
+  /* Cascadia Code would draw >= as ≥: show the SQL exactly as typed */
+  font-variant-ligatures: none;
+  font-feature-settings: 'calt' 0, 'liga' 0;
+  overflow-wrap: normal;
+}
+.lease-how-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.lease-how-redacted {
+  padding: 0 0.2em;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-weight: 700;
+}
+.lease-how-json-key {
+  color: var(--primary);
+}
+.lease-how-json-string {
+  color: var(--ok-text);
+}
+.lease-how-json-number,
+.lease-how-json-literal {
+  color: var(--err-text);
+}
+.lease-how-kv {
+  margin: 0.75rem 0 0;
+  font-size: 0.95rem;
+}
+.lease-how-more {
+  margin-top: 0.75rem;
+}
+.lease-how-more summary {
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.lease-how-more summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (forced-colors: active) {
+  .lease-how-tab[aria-selected='true'] {
+    border-color: Highlight;
+  }
+  .lease-how-redacted {
+    forced-color-adjust: none;
+    background: Mark;
+    color: MarkText;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lease-how-chevron {
+    transition: none;
+  }
+}

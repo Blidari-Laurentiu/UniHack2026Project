@@ -5,9 +5,11 @@ They use made-up neighbourhood names and room counts (6 and up) that the seed ne
 so seeded listings do not change the numbers. Skipped without a dev database.
 """
 
+import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -101,6 +103,29 @@ def test_to_points_sorts_rounds_and_drops_empty_months():
 
 def test_to_points_empty():
     assert to_points([]) == []
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def _js_sql(name: str) -> str:
+    """A `export const NAME = `...`;` template literal from the lease page's howSql.js."""
+    source = (ROOT / "frontend" / "src" / "pages" / "lease" / "howSql.js").read_text(encoding="utf-8")
+    match = re.search(rf"export const {name} = `(.*?)`;", source, re.S)
+    assert match, f"{name} not found in howSql.js"
+    return match.group(1)
+
+
+def _squash(sql: str) -> str:
+    return " ".join(sql.split())
+
+
+def test_sql_shown_on_the_lease_page_is_the_sql_we_run():
+    # "How this was checked" claims to show the real queries, so they must not drift.
+    assert _squash(_js_sql("MEDIAN_SQL")) == _squash(pricing.MEDIAN_SQL)
+    assert _squash(_js_sql("TREND_SQL")) == _squash(trend_sql(city=False, aggregate=True))
+    schema = _squash((ROOT / "db" / "schema" / "10_lease.sql").read_text(encoding="utf-8"))
+    assert _squash(_js_sql("AGGREGATE_SQL")) in schema
 
 
 # ---------- database ----------

@@ -1,3 +1,4 @@
+import HowChecked from './HowChecked.jsx';
 import LeaseReport from './LeaseReport.jsx';
 import PriceBadge from './PriceBadge.jsx';
 import { formatDate, formatEur, roomsLabel } from './format.js';
@@ -34,6 +35,9 @@ export default function AnalysisResult({ analysis }) {
         <strong>Not legal advice.</strong> This is an automatic first check to help you ask the
         right questions. For a binding opinion, ask a lawyer or a notary before you sign.
       </p>
+
+      {/* key: a different analysis starts collapsed and loads its own details */}
+      <HowChecked key={analysis.id} analysisId={analysis.id} />
     </div>
   );
 }

@@ -70,6 +70,33 @@ class LeaseAnalysisSummary(BaseModel):
     verdict: Literal["below_market", "fair", "above_market", "suspiciously_low"]
 
 
+class PriceInputs(BaseModel):
+    """What the price verdict was computed from (services/pricing.py MEDIAN_SQL)."""
+
+    neighbourhood: str
+    rooms: int
+    rent_eur: float
+    window: str  # e.g. "12 months": only listings this recent count
+    min_sample: int  # fewer neighbourhood listings than this -> city-wide median
+    scope: Literal["neighbourhood", "city"]
+    sample_size: int
+    median_eur: float
+    diff_pct: float
+    verdict: Literal["below_market", "fair", "above_market", "suspiciously_low"]
+
+
+class LeaseAnalysisDetails(BaseModel):
+    """GET /lease/analyses/{id}/details: how one analysis was made, for the pitch panel."""
+
+    id: UUID
+    created_at: datetime
+    lease_text_redacted: str  # exactly what Gemini was sent; never the original text
+    redaction_count: int  # how many [REDACTED] markers it holds
+    gemini_json: dict | None  # the report as Gemini returned it (validated); None if it failed
+    report_error: str | None
+    price_inputs: PriceInputs
+
+
 class NeighbourhoodStat(BaseModel):
     name: str
     median_eur_by_rooms: dict[int, float]

@@ -25,6 +25,7 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 | POST | `/lease/analyze` | JWT | `LeaseAnalyzeRequest` (below) | `LeaseAnalysis` (below) | A |
 | GET | `/lease/analyses` | JWT | – | `[{"id": "a111…", "created_at": "2026-11-13T18:30:00Z", "neighbourhood": "Circumvalațiunii", "rooms": 2, "rent_eur": 500.0, "overall_risk": "medium", "verdict": "above_market"}]` | A |
 | GET | `/lease/analyses/{id}` | JWT | – | `LeaseAnalysis`; 404 `{"detail": "analysis not found"}` | A |
+| GET | `/lease/analyses/{id}/details` | JWT | – | `{"id": "a111…", "created_at": "…", "lease_text_redacted": "… CNP [REDACTED] …", "redaction_count": 4, "gemini_json": {LeaseReport}, "report_error": null, "price_inputs": {"neighbourhood": "Circumvalațiunii", "rooms": 2, "rent_eur": 500.0, "window": "12 months", "min_sample": 5, "scope": "neighbourhood", "sample_size": 50, "median_eur": 490.0, "diff_pct": 2.0, "verdict": "fair"}}`; 404 `{"detail": "analysis not found"}` | A |
 
 `LeaseAnalyzeRequest`:
 
@@ -81,6 +82,7 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 - **When Gemini fails**, `report` is `null` and `report_error` holds a message, but `price_verdict` is always present. The analysis is still saved and reads back the same from `GET /lease/analyses/{id}`; in the list, its `overall_risk` is `null`.
 - **When pricing fails**, `POST /lease/analyze` returns 503 `{"detail": "Price check is unavailable: ..."}` (no listings for that room count) or 503 `{"detail": "Price data is unavailable right now (database error). Please try again."}`, and nothing is saved.
 - `GET /lease/analyses` is newest first and lists only the caller's analyses; another user's id gives 404.
+- `GET /lease/analyses/{id}/details` shows how an analysis was made: the redacted text exactly as Gemini received it (never the original), Gemini's JSON (`null` when Gemini failed, with `report_error` saying why) and what the price verdict was computed from. Same ownership rule: another user's id gives 404.
 
 ## Pricing (Feature A)
 
