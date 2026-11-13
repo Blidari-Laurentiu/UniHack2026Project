@@ -3,9 +3,9 @@
 Base URL: `http://localhost:8000` (interactive docs at `/docs`). Models live in `backend/schemas/` (`common.py`, `lease.py`, `events.py`); this file must match them.
 
 - **Auth.** "JWT" means the header `Authorization: Bearer <Auth0 access token>`. When `APP_ENV=dev` only, `X-Dev-User: <name>` can replace it. "Public" routes need no auth.
-- **Errors.** Errors are always `{"detail": "..."}`: 401 for a missing or bad token, 404 for an unknown id, and 422 for an invalid body (FastAPI validation; there `detail` is a list).
+- **Errors.** Errors are always `{"detail": "..."}`: 401 for a missing or bad token, 404 for an unknown id, 422 for an invalid body (FastAPI validation; there `detail` is a list), and 503 when price data is unavailable (empty listings table or database error).
 - **IDs.** All ids are UUID strings. Times are ISO 8601 with a timezone.
-- **Mocks.** The lease and pricing endpoints (Feature A) still return hard-coded mock data (`# MOCK - replace` in the routers). Shapes are final; values are not. The events and profile endpoints (Feature B) are real and read the database.
+- **Data.** All endpoints are real and read the database; none are mocked.
 - **Slots.** The availability slots are `weekday_morning`, `weekday_evening`, `weekend_morning`, `weekend_afternoon` and `weekend_evening`.
 
 The endpoint list was inferred from the `api.js` functions in docs/PLAN.md prompt 5, because PLAN.md has no endpoint tables. Change it here first, then in code.
@@ -78,7 +78,9 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 
 - `overall_risk` and `severity` are `low`, `medium` or `high`.
 - `verdict` is `below_market`, `fair`, `above_market` or `suspiciously_low`; `scope` is `neighbourhood` or `city` (city-wide fallback under 5 listings).
-- **When Gemini fails**, `report` is `null` and `report_error` holds a message, but `price_verdict` is always present.
+- **When Gemini fails**, `report` is `null` and `report_error` holds a message, but `price_verdict` is always present. The analysis is still saved and reads back the same from `GET /lease/analyses/{id}`; in the list, its `overall_risk` is `null`.
+- **When pricing fails**, `POST /lease/analyze` returns 503 `{"detail": "Price check is unavailable: ..."}` (no listings for that room count) or 503 `{"detail": "Price data is unavailable right now (database error). Please try again."}`, and nothing is saved.
+- `GET /lease/analyses` is newest first and lists only the caller's analyses; another user's id gives 404.
 
 ## Pricing (Feature A)
 
