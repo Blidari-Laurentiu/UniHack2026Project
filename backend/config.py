@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     AUTH0_AUDIENCE: str = ""
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
+    DEMO_CACHE: bool = False
     CORS_ORIGINS: str = "http://localhost:5173"
     APP_ENV: str = "dev"
 

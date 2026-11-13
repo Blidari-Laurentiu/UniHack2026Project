@@ -1,0 +1,61 @@
+{
+  "summary": "This lease agreement is highly unfavorable and risky for the tenant. It contains abusive clauses regarding rent increases, owner access, and termination penalties that heavily favor the landlord. You should strongly reconsider signing this contract unless these terms are renegotiated.",
+  "overall_risk": "high",
+  "risky_clauses": [
+    {
+      "quote": "Proprietarul își rezervă dreptul de a modifica cuantumul chiriei oricând pe durata contractului",
+      "category": "rent_increase",
+      "severity": "high",
+      "why": "This allows the landlord to raise the rent at any time without a cap or a specific mechanism, making your housing costs unpredictable.",
+      "suggestion": "Negotiate a fixed rent for the entire duration of the contract or include a clause that rent can only be adjusted once per year based on inflation."
+    },
+    {
+      "quote": "Întârzierea la plata chiriei atrage penalități de 2% pe zi",
+      "category": "penalties",
+      "severity": "high",
+      "why": "A 2% daily penalty is extremely high and predatory. It can quickly accumulate into a massive debt.",
+      "suggestion": "Request a lower, reasonable penalty rate (e.g., 0.1% per day) and a grace period before penalties apply."
+    },
+    {
+      "quote": "Garanția poate fi reținută integral sau parțial... după aprecierea exclusivă a acestuia, fără a fi necesară justificarea",
+      "category": "deposit",
+      "severity": "high",
+      "why": "This clause allows the landlord to keep your deposit without proof of damage, which is unfair and prone to abuse.",
+      "suggestion": "Insist that the deposit can only be used for documented damages beyond normal wear and tear, and require receipts or invoices for any deductions."
+    },
+    {
+      "quote": "Să suporte costul tuturor reparațiilor apărute în timpul contractului, indiferent de natura sau cauza acestora",
+      "category": "repairs",
+      "severity": "high",
+      "why": "You are being made responsible for structural repairs and major installations (like the boiler), which is legally the landlord's responsibility.",
+      "suggestion": "Clarify that the tenant is only responsible for minor maintenance and damages caused by misuse, while the landlord covers structural and major appliance repairs."
+    },
+    {
+      "quote": "Să permită accesul proprietarului în apartament oricând acesta consideră necesar, fără notificare prealabilă",
+      "category": "owner_access",
+      "severity": "high",
+      "why": "This violates your right to privacy and quiet enjoyment of the property. You should never allow unannounced entry.",
+      "suggestion": "Require a clause stating the landlord must provide at least 24-48 hours' notice before entering, except in genuine emergencies."
+    },
+    {
+      "quote": "Chiriașul poate denunța unilateral contractul cu un preaviz de 60 de zile, caz în care datorează proprietarului o penalitate egală cu 3 (trei) chirii …",
+      "category": "termination",
+      "severity": "high",
+      "why": "This is a lopsided penalty. You are penalized heavily for leaving, while the landlord can terminate with only 5 days' notice.",
+      "suggestion": "Negotiate equal notice periods for both parties and remove the 3-month penalty fee."
+    },
+    {
+      "quote": "Plata se face prin transfer bancar... sau în numerar, la alegerea proprietarului.",
+      "category": "payment",
+      "severity": "medium",
+      "why": "Cash payments are risky because they are hard to prove. If the landlord chooses cash, you might not have a paper trail.",
+      "suggestion": "Insist on bank transfer only to ensure you have a clear, traceable record of every payment made."
+    }
+  ],
+  "missing_clauses": [
+    {
+      "name": "Registration with ANAF",
+      "why": "The contract does not explicitly state that the landlord will register the lease with the tax authority (ANAF), which is a legal requirement in Romania and protects your rights as a tenant."
+    }
+  ]
+}
