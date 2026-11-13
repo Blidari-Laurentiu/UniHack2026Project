@@ -7,6 +7,7 @@ import useApi from '../../useApi.js';
 import AnalysisHistory from './AnalysisHistory.jsx';
 import AnalysisResult from './AnalysisResult.jsx';
 import LeaseForm, { EMPTY_FORM } from './LeaseForm.jsx';
+import MedianChart from './MedianChart.jsx';
 
 function useElapsedSeconds(running) {
   const [seconds, setSeconds] = useState(0);
@@ -132,6 +133,19 @@ export default function LeasePage() {
           <AnalysisResult analysis={result} />
         </section>
       )}
+
+      <section className="card" aria-labelledby="lease-chart-title">
+        <h2 id="lease-chart-title">Rent by neighbourhood</h2>
+        <MedianChart
+          data={hoods.data}
+          loading={hoods.loading}
+          error={hoods.error}
+          onRetry={hoods.reload}
+          rooms={values.rooms}
+          neighbourhood={values.neighbourhood}
+          result={result}
+        />
+      </section>
 
       {isAuthenticated && (
         <section className="card">
