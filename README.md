@@ -42,7 +42,7 @@ cp .env.example .env               # then fill in the real values
 | `AUTH0_DOMAIN` | e.g. `your-tenant.eu.auth0.com` |
 | `AUTH0_AUDIENCE` | `https://newcomer-hub/api` (must match the frontend) |
 | `GEMINI_API_KEY` | your own key from Google AI Studio |
-| `GEMINI_MODEL` | `gemini-2.5-flash` |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` |
 | `CORS_ORIGINS` | `http://localhost:5173` |
 | `APP_ENV` | `dev` on laptops. Only `dev` allows seeding, reset and the `X-Dev-User` login bypass. |
 
