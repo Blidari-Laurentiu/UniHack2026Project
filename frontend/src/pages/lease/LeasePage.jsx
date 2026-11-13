@@ -1,5 +1,6 @@
 // Person A owns this folder: lease form, loading state, result (price badge + report) and history.
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { analyzeLease, getAnalysis, getNeighbourhoods, listAnalyses } from '../../api.js';
 import { LoginButton, useAuth } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
@@ -149,7 +150,12 @@ export default function LeasePage() {
 
       {isAuthenticated && (
         <section className="card">
-          <h2>Your past checks</h2>
+          <div className="lease-history-page-cardhead">
+            <h2>Your past checks</h2>
+            <Link to="/lease/history" className="small">
+              See all checks →
+            </Link>
+          </div>
           <AnalysisHistory
             items={history.data || []}
             loading={history.loading}
