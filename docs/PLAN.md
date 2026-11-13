@@ -220,14 +220,14 @@ Tonight's goal is gate 1: on both laptops, login works and `/health/db` and `/me
 
 **Person A: repo, backend, database**
 
-- [ ] Create the private GitHub repo, add Person B, save the plan as `docs/PLAN.md`.
-- [ ] Run prompt 0, commit. Run prompt 1, commit, first push (section 3, step 1).
+- [x] Create the private GitHub repo, add Person B, save the plan as `docs/PLAN.md`.
+- [x] Run prompt 0, commit. Run prompt 1, commit, first push (section 3, step 1).
 - [ ] Send `DATABASE_URL` to Person B privately.
-- [ ] Run prompt 2 in plan mode; check in the Tiger console that the connection limit allows 10 connections.
-- [ ] Run prompt 3 with the Auth0 values from Person B (the dev bypass lets you test before they arrive).
-- [ ] Run prompt 4, then walk Person B through `API.md` in 10 minutes.
-- [ ] Run prompt 6 after Person B's frontend is merged.
-- [ ] If time is left: write 2 or 3 sample Romanian leases with invented names and no real ID numbers in `data/sample_leases/`, and note rough rent ranges for 8 to 10 neighbourhoods.
+- [x] Run prompt 2 in plan mode; check in the Tiger console that the connection limit allows 10 connections.
+- [x] Run prompt 3 with the Auth0 values from Person B (the dev bypass lets you test before they arrive).
+- [x] Run prompt 4, then walk Person B through `API.md` in 10 minutes.
+- [x] Run prompt 6 after Person B's frontend is merged.
+- [x] If time is left: write 2 or 3 sample Romanian leases with invented names and no real ID numbers in `data/sample_leases/`, and note rough rent ranges for 8 to 10 neighbourhoods.
 
 **Person B: Auth0 and frontend**
 
@@ -249,11 +249,11 @@ Phase 2 turns every mock into a real endpoint, one branch and one PR per numbere
 
 **Phase 2, Person A: renting (Friday night to Saturday evening)**
 
-- [ ] 1\. `db/seed_listings.py`: about 200 listings across 8 to 10 neighbourhoods, prices by room count, `listed_at` spread over the last 12 months (this later feeds the trend chart). Label it sample data in the UI.
-- [ ] 2\. `services/pricing.py` with tests: median via `percentile_cont(0.5)`, verdict thresholds (±10%, under -30% = possible scam), city-wide fallback under 5 listings.
-- [ ] 3\. `services/gemini.py`: redaction, checklist prompt, structured output, Pydantic validation, one retry, cached demo result (prompt below).
-- [ ] 4\. `routers/lease.py` and `routers/pricing.py`: replace the mocks, run Gemini and pricing in parallel, save to `lease_analyses`; pricing must still answer when Gemini fails.
-- [ ] 5\. `pages/lease/`: form, loading state, summary, severity chips, missing clauses, price badge, "Not legal advice".
+- [x] 1\. `db/seed_listings.py`: about 1000 listings across 8 to 10 neighbourhoods, prices by room count, `listed_at` spread over the last 12 months (this later feeds the trend chart). Label it sample data in the UI.
+- [x] 2\. `services/pricing.py` with tests: median via `percentile_cont(0.5)`, verdict thresholds (±10%, under -30% = possible scam), city-wide fallback under 5 listings.
+- [x] 3\. `services/gemini.py`: redaction, checklist prompt, structured output, Pydantic validation, one retry, cached demo result (prompt below).
+- [x] 4\. `routers/lease.py` and `routers/pricing.py`: replace the mocks, run Gemini and pricing in parallel, save to `lease_analyses`; pricing must still answer when Gemini fails.
+- [x] 5\. `pages/lease/`: form, loading state, summary, severity chips, missing clauses, price badge, "Not legal advice".
 
 **Phase 2, Person B: events and matching**
 
@@ -268,9 +268,9 @@ Phase 2 turns every mock into a real endpoint, one branch and one PR per numbere
 
 | Person A | Person B | Together |
 | --- | --- | --- |
-| Neighbourhood median bar chart | Verified student badge from the Auth0 claim | Error, loading and empty states; mobile check |
-| Saved analyses history page | Leave group and refill from the waiting list | Host decision (Render, Railway or Fly.io) with the Dockerfile |
-| Continuous aggregate and price-trend chart | Report button and `reports` table | Demo script, rehearsed twice; seed reset |
+| Neighbourhood median bar chart (done, #12) | Verified student badge from the Auth0 claim | Error, loading and empty states; mobile check |
+| Saved analyses history page (done, #13 and #14) | Leave group and refill from the waiting list | Host decision (Render, Railway or Fly.io) with the Dockerfile |
+| Continuous aggregate and price-trend chart (done, #15) | Report button and `reports` table | Demo script, rehearsed twice; seed reset |
 | Pitch part: Gemini and Tiger Data (show the raw JSON and the SQL) | Pitch part: Auth0 and matching | Pitch slides; feature freeze before the rehearsal |
 
 Stretch, only if everything above is done: PDF lease upload, Gemini icebreakers per group (must never block group creation), Vultr deploy.

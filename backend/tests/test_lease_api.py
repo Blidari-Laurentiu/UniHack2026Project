@@ -13,6 +13,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 import routers.lease as lease_router
 import routers.pricing as pricing_router
@@ -248,6 +249,85 @@ def test_another_users_analysis_is_404(client, hood):
 
 def test_new_user_has_no_analyses(client):
     assert client.get("/lease/analyses", headers=as_user("new")).json() == []
+
+
+# --- details ("How this was checked") ---
+
+
+def test_details_show_redacted_text_gemini_json_and_price_inputs(client, conn, gemini, hood):
+    me = as_user("mei")
+    data = client.post("/lease/analyze", json=body(hood), headers=me).json()
+
+    r = client.get(f"/lease/analyses/{data['id']}/details", headers=me)
+    assert r.status_code == 200, r.text
+    details = r.json()
+
+    assert (details["id"], details["created_at"]) == (data["id"], data["created_at"])
+    # The text is exactly what Gemini received, and it holds no personal ID.
+    assert details["lease_text_redacted"] == gemini.calls[0][0]
+    assert details["redaction_count"] == 3  # CNP, ID card, IBAN
+    for secret in (CNP, IBAN, "TM nr. 123456", "123456"):
+        assert secret not in r.text
+    assert details["gemini_json"] == REPORT.model_dump()
+    assert details["report_error"] is None
+    assert details["price_inputs"] == {
+        "neighbourhood": hood,
+        "rooms": 2,
+        "rent_eur": 500.0,
+        "window": "12 months",
+        "min_sample": 5,
+        "scope": "neighbourhood",
+        "sample_size": 5,
+        "median_eur": 450.0,
+        "diff_pct": 11.1,
+        "verdict": "above_market",
+    }
+
+
+def test_details_when_gemini_failed(client, gemini, hood):
+    gemini.error = GeminiError("Gemini request failed: TimeoutError")
+    me = as_user("mei")
+    data = client.post("/lease/analyze", json=body(hood), headers=me).json()
+
+    details = client.get(f"/lease/analyses/{data['id']}/details", headers=me).json()
+    assert details["gemini_json"] is None
+    assert details["report_error"] == "Gemini request failed: TimeoutError"
+    assert details["price_inputs"]["verdict"] == "above_market"  # pricing still answered
+
+
+def test_details_never_return_unredacted_text(client, conn):
+    # A row written outside /lease/analyze (say, by hand) with raw IDs in it.
+    me = as_user("mei")
+    user_id = client.get("/me", headers=me).json()["id"]
+    verdict = {"median_eur": 450.0, "diff_pct": 0.0, "verdict": "fair", "scope": "city", "sample_size": 9}
+    row = conn.execute(
+        """
+        insert into lease_analyses
+            (user_id, neighbourhood, rent_eur, rooms, lease_text_redacted, result_json, price_verdict)
+        values (%s, 'Centru', 450, 2, %s, %s, %s) returning id
+        """,
+        (user_id, LEASE, Jsonb({"report_error": "x"}), Jsonb(verdict)),
+    ).fetchone()
+
+    r = client.get(f"/lease/analyses/{row['id']}/details", headers=me)
+    assert r.status_code == 200, r.text
+    for secret in (CNP, IBAN, "TM nr. 123456"):
+        assert secret not in r.text
+    assert r.json()["redaction_count"] == 3
+
+
+def test_details_of_another_users_analysis_is_404(client, hood):
+    mine = client.post("/lease/analyze", json=body(hood), headers=as_user("mei")).json()
+    for analysis_id in (mine["id"], MISSING):
+        r = client.get(f"/lease/analyses/{analysis_id}/details", headers=as_user("andrei"))
+        assert (r.status_code, r.json()) == (404, {"detail": "analysis not found"})
+
+
+def test_details_need_auth(client, hood):
+    mine = client.post("/lease/analyze", json=body(hood), headers=as_user("mei")).json()
+    r = client.get(f"/lease/analyses/{mine['id']}/details")
+    assert r.status_code == 401
+    assert "detail" in r.json()
 
 
 # --- pricing ---

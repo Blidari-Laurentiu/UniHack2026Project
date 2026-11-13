@@ -22,13 +22,15 @@ from auth import current_user
 from db import get_conn
 from schemas.lease import (
     LeaseAnalysis,
+    LeaseAnalysisDetails,
     LeaseAnalysisSummary,
     LeaseAnalyzeRequest,
     LeaseReport,
+    PriceInputs,
     PriceVerdict,
 )
-from services.gemini import GeminiError, analyze_lease, redact
-from services.pricing import PricingUnavailable, price_verdict
+from services.gemini import REDACTED, GeminiError, analyze_lease, redact
+from services.pricing import MIN_SAMPLE, WINDOW, PricingUnavailable, price_verdict
 
 log = logging.getLogger("uvicorn.error")
 
@@ -140,3 +142,39 @@ def get_analysis(analysis_id: UUID, user: dict = Depends(current_user), conn=Dep
     if row is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return _to_analysis(row)
+
+
+def _to_details(row: dict) -> LeaseAnalysisDetails:
+    analysis = _to_analysis(row)  # same report / report_error rules as the result itself
+    verdict = analysis.price_verdict
+    # Saved text is already redacted; redacting again (a no-op then) guarantees this endpoint
+    # can never hand out a CNP, IBAN or ID number, even from a row written some other way.
+    text = redact(row["lease_text_redacted"] or "")
+    return LeaseAnalysisDetails(
+        id=analysis.id,
+        created_at=analysis.created_at,
+        lease_text_redacted=text,
+        redaction_count=text.count(REDACTED),
+        gemini_json=analysis.report.model_dump() if analysis.report else None,
+        report_error=analysis.report_error,
+        price_inputs=PriceInputs(
+            neighbourhood=analysis.neighbourhood,
+            rooms=analysis.rooms,
+            rent_eur=analysis.rent_eur,
+            window=WINDOW,
+            min_sample=MIN_SAMPLE,
+            **verdict.model_dump(),
+        ),
+    )
+
+
+@router.get("/analyses/{analysis_id}/details", response_model=LeaseAnalysisDetails)
+def get_analysis_details(analysis_id: UUID, user: dict = Depends(current_user), conn=Depends(get_conn)):
+    """The redacted text sent to Gemini, Gemini's JSON and the price verdict inputs."""
+    row = conn.execute(
+        f"select {COLUMNS}, lease_text_redacted from lease_analyses where id = %s and user_id = %s",
+        (analysis_id, user["id"]),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return _to_details(row)
