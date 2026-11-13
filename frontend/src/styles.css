@@ -797,3 +797,206 @@ code {
   background: var(--bg);
   box-shadow: inset 4px 0 0 var(--primary);
 }
+
+/* Lease: neighbourhood median chart (plain CSS bars) */
+.lease-chart {
+  --lease-chart-bar: #7896c9; /* 3:1 on white */
+  --lease-chart-bar-chosen: var(--primary);
+  --lease-chart-grid: var(--border);
+}
+.lease-chart-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.lease-chart-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.lease-chart-toggle-btn {
+  min-height: 36px;
+  padding: 0.3rem 0.8rem;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.lease-chart-toggle-btn:first-child {
+  border-left: 0;
+}
+.lease-chart-toggle-btn:hover {
+  background: var(--bg);
+}
+.lease-chart-toggle-btn[aria-pressed='true'] {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+.lease-chart-toggle-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -4px;
+  box-shadow: inset 0 0 0 4px #fff;
+}
+.lease-chart-sub {
+  margin-bottom: 0.75rem;
+}
+.lease-chart-status {
+  margin: 0.5rem 0;
+}
+.lease-chart-bars {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.lease-chart-row {
+  display: grid;
+  gap: 0.15rem;
+  align-items: center;
+}
+.lease-chart-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+.lease-chart-name {
+  overflow-wrap: anywhere;
+}
+.lease-chart-row-chosen .lease-chart-name {
+  font-weight: 700;
+}
+.lease-chart-tag {
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: 0.1em;
+  white-space: nowrap;
+}
+.lease-chart-n {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.lease-chart-track {
+  /* Room on the right so the value label after the longest bar never overflows. */
+  padding-right: 4.5rem;
+  border-left: 1px solid var(--lease-chart-grid);
+}
+.lease-chart-scale {
+  position: relative;
+  height: 20px;
+}
+.lease-chart-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 20px;
+  min-width: 2px;
+  background: var(--lease-chart-bar);
+  border-radius: 0 4px 4px 0;
+}
+.lease-chart-row-chosen .lease-chart-bar {
+  background: var(--lease-chart-bar-chosen);
+}
+.lease-chart-value {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+  margin-left: 4px;
+  padding: 0 2px;
+  background: var(--surface);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lease-chart-row-chosen .lease-chart-value {
+  font-weight: 700;
+}
+.lease-chart-marker {
+  position: absolute;
+  top: -4px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text);
+  box-shadow: 0 0 0 1px var(--surface);
+}
+.lease-chart-marker-row {
+  height: auto;
+  min-height: 1.2rem;
+  margin-top: 6px;
+}
+.lease-chart-marker-label {
+  position: absolute;
+  top: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.lease-chart-row-marked .lease-chart-track {
+  padding-bottom: 0.2rem;
+}
+.lease-chart-skipped,
+.lease-chart-note {
+  margin: 0.25rem 0 0;
+}
+.lease-chart-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (min-width: 640px) {
+  .lease-chart-row {
+    grid-template-columns: 12rem 1fr;
+    gap: 0.75rem;
+  }
+  .lease-chart-label {
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+  }
+  .lease-chart-row-marked {
+    align-items: start;
+  }
+}
+@media (forced-colors: active) {
+  .lease-chart-bar,
+  .lease-chart-marker {
+    background: CanvasText;
+  }
+  .lease-chart-row-chosen .lease-chart-bar {
+    background: Highlight;
+  }
+}
+.lease-chart-value-inside {
+  margin: 0 6px 0 0;
+  background: none;
+  color: #fff;
+}
+@media (forced-colors: active) {
+  .lease-chart-value-inside {
+    color: HighlightText;
+  }
+}
