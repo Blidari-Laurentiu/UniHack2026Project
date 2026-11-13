@@ -1,5 +1,6 @@
-"""Feature A endpoints answer and match their response models (mocks, no DB), and every
-authed endpoint refuses anonymous callers. Feature B has real endpoints: see test_events_api.py."""
+"""Every authed endpoint refuses anonymous callers, and bad lease bodies are rejected (no DB).
+The endpoints themselves are tested against the database in test_lease_api.py (Feature A)
+and test_events_api.py (Feature B)."""
 
 import sys
 from datetime import datetime, timezone
@@ -37,13 +38,10 @@ PROFILE_BODY = {
     "availability": ["weekday_evening"],
 }
 
-MOCKED = [
+AUTHED = [
     ("post", "/lease/analyze", LEASE_BODY),
     ("get", "/lease/analyses", None),
     ("get", f"/lease/analyses/{ANALYSIS_ID}", None),
-    ("get", "/pricing/neighbourhoods", None),
-]
-AUTHED = MOCKED[:3] + [
     ("post", f"/events/{EVENT_ID}/join", None),
     ("post", f"/events/{EVENT_ID}/leave", None),
     ("post", f"/events/{EVENT_ID}/match", None),
@@ -56,6 +54,7 @@ AUTHED = MOCKED[:3] + [
 @pytest.fixture
 def client():
     app.dependency_overrides[current_user] = lambda: FAKE_USER
+    app.dependency_overrides[get_conn] = lambda: None
     # No `with`: skips the lifespan, so the DB pool is never opened.
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -68,30 +67,11 @@ def anon_client():
     app.dependency_overrides.clear()
 
 
-@pytest.mark.parametrize("method,path,body", MOCKED)
-def test_endpoint_ok(client, method, path, body):
-    r = client.request(method, path, json=body)
-    assert r.status_code == 200, r.text
-
-
 @pytest.mark.parametrize("method,path,body", AUTHED)
 def test_authed_endpoints_need_auth(anon_client, method, path, body):
     r = anon_client.request(method, path, json=body)
     assert r.status_code == 401
     assert "detail" in r.json()
-
-
-def test_analyze_shape(client):
-    data = client.post("/lease/analyze", json=LEASE_BODY).json()
-    assert data["rent_eur"] == 500
-    assert data["report"]["overall_risk"] in {"low", "medium", "high"}
-    assert {"quote", "category", "severity", "why", "suggestion"} <= data["report"]["risky_clauses"][0].keys()
-    assert {"median_eur", "diff_pct", "verdict", "scope", "sample_size"} <= data["price_verdict"].keys()
-
-
-def test_unknown_ids_404(client):
-    missing = "00000000-0000-4000-8000-000000000000"
-    assert client.get(f"/lease/analyses/{missing}").json() == {"detail": "analysis not found"}
 
 
 @pytest.mark.parametrize("rooms", [0, 4])
