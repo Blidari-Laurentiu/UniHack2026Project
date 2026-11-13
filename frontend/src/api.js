@@ -90,6 +90,9 @@ export const analyzeLease = (payload) => apiFetch('/lease/analyze', { method: 'P
 export const listAnalyses = () => apiFetch('/lease/analyses');
 export const getAnalysis = (id) => apiFetch(`/lease/analyses/${encodeURIComponent(id)}`);
 export const getNeighbourhoods = () => apiFetch('/pricing/neighbourhoods');
+/** params: { rooms: 1..3 (required), neighbourhood (optional; leave out for city-wide) } */
+export const getPriceTrend = ({ rooms, neighbourhood } = {}) =>
+  apiFetch(`/pricing/trend${qs({ rooms, neighbourhood })}`);
 
 // --- Feature B: event groups (Person B) ---
 /** filters: { interest: slug, from: ISO datetime, to: ISO datetime }, all optional. */

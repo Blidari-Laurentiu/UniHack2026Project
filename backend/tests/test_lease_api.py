@@ -15,6 +15,8 @@ from fastapi.testclient import TestClient
 from psycopg.rows import dict_row
 
 import routers.lease as lease_router
+import routers.pricing as pricing_router
+import services.pricing as pricing_service
 from config import settings
 from db import get_conn
 from main import app
@@ -256,3 +258,62 @@ def test_neighbourhoods_from_listings(client, hood):
     assert r.status_code == 200, r.text
     stat = next(s for s in r.json() if s["name"] == hood)
     assert stat == {"name": hood, "median_eur_by_rooms": {"2": 450.0}, "sample_size": 5}
+
+
+# --- price trend ---
+
+
+@pytest.mark.parametrize("use_aggregate", [True, False])
+def test_trend_for_a_neighbourhood(client, conn, monkeypatch, use_aggregate):
+    # Listed now: with TimescaleDB the current month is real-time, so the aggregate sees these
+    # uncommitted rows (an older month would be materialized and need a refresh).
+    if use_aggregate and not pricing_service.has_trend_aggregate(conn):
+        pytest.skip("continuous aggregates not created")
+    monkeypatch.setattr(pricing_service, "has_trend_aggregate", lambda conn: use_aggregate)
+    name = f"Test {uuid.uuid4().hex[:8]}"
+    now = datetime.now(timezone.utc)
+    with conn.cursor() as cur:
+        cur.executemany(
+            "insert into listings (neighbourhood, rooms, price_eur, listed_at) values (%s, %s, %s, %s)",
+            [(name, 2, p, now) for p in (300, 500, 700)] + [(name, 3, 900, now)],
+        )
+    r = client.get("/pricing/trend", params={"neighbourhood": name, "rooms": 2})
+    assert r.status_code == 200, r.text
+    assert r.headers["X-Trend-Source"] == ("continuous_aggregate" if use_aggregate else "listings")
+    assert r.json() == [{"month": now.date().replace(day=1).isoformat(), "median_eur": 500.0, "count": 3}]
+
+
+def test_trend_city_wide_is_oldest_first_and_at_most_12_months(client):
+    for params in ({"rooms": 2}, {"rooms": 2, "neighbourhood": ""}, {"rooms": "2", "neighbourhood": "  "}):
+        r = client.get("/pricing/trend", params=params)
+        assert r.status_code == 200, r.text
+        months = [p["month"] for p in r.json()]
+        assert months == sorted(set(months))
+        assert len(months) <= 12
+
+
+def test_trend_unknown_neighbourhood_is_empty(client):
+    r = client.get("/pricing/trend", params={"neighbourhood": "Nowhere at all", "rooms": 1})
+    assert (r.status_code, r.json()) == (200, [])
+
+
+@pytest.mark.parametrize("rooms", [None, "", "0", "4", "two", "2.5", "-1"])
+def test_trend_bad_rooms_is_422(client, rooms):
+    params = {"neighbourhood": "Centru"} | ({} if rooms is None else {"rooms": rooms})
+    r = client.get("/pricing/trend", params=params)
+    assert (r.status_code, r.json()) == (422, {"detail": pricing_router.BAD_ROOMS})
+
+
+def test_trend_neighbourhood_too_long_is_422(client):
+    r = client.get("/pricing/trend", params={"neighbourhood": "x" * 81, "rooms": 2})
+    assert r.status_code == 422
+    assert isinstance(r.json()["detail"], str)
+
+
+def test_trend_database_error_is_503(client, monkeypatch):
+    def broken(*args, **kwargs):
+        raise psycopg.OperationalError("server closed the connection")
+
+    monkeypatch.setattr(pricing_router, "price_trend", broken)
+    r = client.get("/pricing/trend", params={"rooms": 2})
+    assert (r.status_code, r.json()) == (503, {"detail": pricing_router.DB_DOWN})

@@ -1,10 +1,12 @@
 """Person A: seed rental listings. Sample data, not real listings.
 
-About 200 listings across 10 Timișoara neighbourhoods, 1 to 3 rooms, with prices drawn
+About 1000 listings across 10 Timișoara neighbourhoods, 1 to 3 rooms, with prices drawn
 from the ranges in data/rent_ranges.md and listed_at spread over the last 12 months.
 
 Prices drift up over the year (about +8% year on year, as Storia reported for Timișoara),
 so older listings are a little cheaper. That gives the price-trend chart something to show.
+The drift is small next to the spread inside each price range, so the monthly medians need
+volume: with 200 listings even the city-wide line was flat noise; 1000 shows the rise.
 
 Safe to run again: the listings table holds only seed data, so its rows are deleted and
 re-inserted. With random.seed(42) the prices and areas are the same on every laptop;
@@ -36,7 +38,7 @@ ROOMS_WEIGHT = {1: 3, 2: 4, 3: 2}
 
 AREA_M2 = {1: (26, 40), 2: (44, 65), 3: (62, 90)}
 
-TOTAL = 200
+TOTAL = 1000
 BASE_PER_CELL = 5  # pricing needs 5 listings for a neighbourhood-level median
 # Thin on purpose, so the demo can show the city-wide fallback.
 THIN_CELLS = {("Calea Șagului", 3): 3}
@@ -83,3 +85,43 @@ def seed(conn) -> None:
             rows,
         )
     print(f"seed_listings: {len(rows)} sample listings in {len(RANGES)} neighbourhoods")
+    refresh_trend(conn)
+
+
+TREND_VIEWS = ("listings_monthly", "listings_monthly_city")
+
+
+def refresh_trend(conn) -> None:
+    """Materialize the monthly continuous aggregates so the trend chart has data right away.
+
+    refresh_continuous_aggregate cannot run inside a transaction, so the listings are
+    committed first and the refresh runs in autocommit mode. Does nothing on plain Postgres.
+    """
+    # to_regclass works on plain Postgres too (returns null there).
+    views = [
+        v for v in TREND_VIEWS
+        if conn.execute("select to_regclass(%s) is not null", (v,)).fetchone()[0]
+    ]
+    if not views:
+        print("seed_listings: no continuous aggregate to refresh (plain Postgres or schema not applied)")
+        return
+    conn.commit()
+    conn.autocommit = True
+    try:
+        for view in views:
+            # Everything up to now. Only complete months are materialized; the current month
+            # stays real-time, so the hourly policy and new listings keep it up to date.
+            conn.execute(f"call refresh_continuous_aggregate('{view}', null, now())")
+            print(f"seed_listings: refreshed {view}")
+    finally:
+        conn.autocommit = False
+
+
+if __name__ == "__main__":
+    # Seed only the listings (python db/seed_listings.py); db/seed.py seeds everything.
+    from common import connect, require_dev
+
+    require_dev("seed_listings.py")
+    with connect() as conn:
+        seed(conn)
+        conn.commit()

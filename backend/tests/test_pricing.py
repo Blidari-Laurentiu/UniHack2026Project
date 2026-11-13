@@ -6,18 +6,23 @@ so seeded listings do not change the numbers. Skipped without a dev database.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 import psycopg
 import pytest
 from psycopg.rows import dict_row
 
+import services.pricing as pricing
 from config import settings
 from services.pricing import (
     PricingUnavailable,
     make_verdict,
     neighbourhood_stats,
+    price_trend,
     price_verdict,
+    to_points,
+    trend_sql,
     verdict_for,
 )
 
@@ -60,6 +65,42 @@ def test_make_verdict_uses_unrounded_diff():
 
 def test_suspiciously_low_rent():
     assert make_verdict(200, 450, "neighbourhood", 9).verdict == "suspiciously_low"
+
+
+@pytest.mark.parametrize(
+    "city,aggregate,reads,filters_hood",
+    [
+        (False, True, "from listings_monthly\n", True),
+        (True, True, "from listings_monthly_city", False),
+        (False, False, "from listings\n", True),
+        (True, False, "from listings\n", False),
+    ],
+)
+def test_trend_sql_picks_the_source(city, aggregate, reads, filters_hood):
+    sql = trend_sql(city, aggregate)
+    assert reads in sql
+    assert ("%(neighbourhood)s" in sql) is filters_hood
+    assert "rooms = %(rooms)s" in sql
+    assert "interval '11 months'" in sql  # 12 months including the current one
+    assert ("date_trunc('month', listed_at" in sql) is not aggregate
+
+
+def test_to_points_sorts_rounds_and_drops_empty_months():
+    rows = [
+        {"month": date(2026, 3, 1), "median_eur": 455.125, "n": 4},
+        {"month": date(2026, 1, 1), "median_eur": Decimal("430"), "n": 6},
+        {"month": date(2026, 2, 1), "median_eur": 440.0, "n": 0},
+    ]
+    points = to_points(rows)
+    assert [(p.month, p.median_eur, p.count) for p in points] == [
+        (date(2026, 1, 1), 430.0, 6),
+        (date(2026, 3, 1), 455.12, 4),
+    ]
+    assert points[0].model_dump(mode="json") == {"month": "2026-01-01", "median_eur": 430.0, "count": 6}
+
+
+def test_to_points_empty():
+    assert to_points([]) == []
 
 
 # ---------- database ----------
@@ -160,3 +201,46 @@ def test_neighbourhood_stats(conn, tag):
     stat = next(s for s in neighbourhood_stats(conn) if s.name == tag)
     assert stat.median_eur_by_rooms == {6: 320, 7: 550}
     assert stat.sample_size == 5
+
+
+# --- price trend ---
+
+
+def this_month():
+    return datetime.now(timezone.utc).date().replace(day=1)
+
+
+@needs_db
+def test_trend_from_the_continuous_aggregate_includes_new_listings(conn, tag):
+    """New, uncommitted listings show up through real-time aggregation of the current month."""
+    if not pricing.has_trend_aggregate(conn):
+        pytest.skip("continuous aggregates not created (no TimescaleDB or schema not applied)")
+    add(conn, tag, 6, [400, 420, 460], days_ago=0)
+    points, source = price_trend(conn, 6, tag.lower())  # neighbourhood match ignores case
+    assert source == "continuous_aggregate"
+    assert [(p.month, p.median_eur, p.count) for p in points] == [(this_month(), 420, 3)]
+
+    city, _ = price_trend(conn, 6)
+    assert city[-1].month == this_month()
+    assert city[-1].count >= 3
+
+
+@needs_db
+def test_trend_from_listings_without_timescale(conn, tag, monkeypatch):
+    monkeypatch.setattr(pricing, "has_trend_aggregate", lambda conn: False)
+    add(conn, tag, 6, [400, 420, 460], days_ago=0)
+    add(conn, tag, 6, [300, 310], days_ago=45)
+    add(conn, tag, 6, [100] * 5, days_ago=400)  # older than 12 months: left out
+    points, source = price_trend(conn, 6, tag)
+    assert source == "listings"
+    assert [(p.median_eur, p.count) for p in points] == [(305, 2), (420, 3)]
+    assert points[0].month < points[1].month == this_month()
+
+
+@needs_db
+@pytest.mark.parametrize("aggregate", [True, False])
+def test_trend_unknown_neighbourhood_is_empty(conn, monkeypatch, aggregate):
+    if aggregate and not pricing.has_trend_aggregate(conn):
+        pytest.skip("continuous aggregates not created")
+    monkeypatch.setattr(pricing, "has_trend_aggregate", lambda conn: aggregate)
+    assert price_trend(conn, 2, "Nowhere at all")[0] == []
