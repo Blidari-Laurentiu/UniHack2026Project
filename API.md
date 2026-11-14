@@ -41,7 +41,7 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
              "expires_at": "2026-11-14T16:10:00Z", "resend_after": "2026-11-14T16:01:00Z"}}
 ```
 
-- **Start.** 422 `unknown university` or `use your student email for UVT (@e-uvt.ro)` (the domain must be a student domain of that university, exact match). 409 `you are already a verified student` or `this university email is already used by another account`. 429 `wait N seconds before asking for a new code` (60 s between codes) or `too many codes in the last hour, try again later` (5 per hour). 503 when the email cannot be sent, or `sending email is not set up on the server` (no `SMTP_HOST` outside dev; in dev the code is written to the server log instead). A new code replaces the previous one.
+- **Start.** 422 `unknown university` or `use your student email for UVT (@e-uvt.ro)` (the domain must be a student domain of that university, exact match). 409 `you are already a verified student` or `this university email is already used by another account`. 429 `wait N seconds before asking for a new code` (60 s between codes) or `too many codes in the last hour, try again later` (5 per hour). 503 when the email cannot be sent, or `sending email is not set up on the server` (no `MAIL_FROM` with `BREVO_API_KEY` or `SMTP_HOST` outside dev; in dev the code is written to the server log instead). A new code replaces the previous one.
 - **Confirm.** Codes expire after 10 minutes and allow 5 wrong tries. 400 `no code to confirm, ask for a new one`, `this code has expired, ask for a new one` or `wrong code, N tries left`. 429 `too many wrong codes, ask for a new one`. 409 as above.
 
 ## Lease (Feature A)

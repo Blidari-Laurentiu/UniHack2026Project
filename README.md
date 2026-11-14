@@ -126,6 +126,8 @@ Environment variables: the same names as `backend/.env`, with these differences:
 | `APP_ENV` | `production` (turns the `X-Dev-User` bypass off) |
 | `DEMO_CACHE` | `1` (the demo lease answers without calling Gemini) |
 | `CORS_ORIGINS` | the exact frontend origin, e.g. `https://your-project.vercel.app`, with no trailing slash |
+| `BREVO_API_KEY` | the Brevo API key; student verification codes are sent through Brevo's HTTPS API, because Render's free plan blocks SMTP ports |
+| `MAIL_FROM` | `Newcomer Hub <address>`, where the address is a sender verified in Brevo |
 
 Do not set `PORT`. Render provides it and the Dockerfile reads it.
 
