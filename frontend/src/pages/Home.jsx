@@ -1,30 +1,26 @@
 import { Link } from 'react-router-dom';
+import { useT } from '../strings.js';
 
 export default function Home() {
+  const t = useT();
   return (
     <>
       <section className="hero">
-        <h1>New in Timișoara?</h1>
-        <p className="lead">Check your lease before you sign, and find people to go out with.</p>
+        <h1>{t('home.title')}</h1>
+        <p className="lead">{t('home.lead')}</p>
       </section>
 
       <div className="cards">
         <Link to="/lease" className="card card-link">
-          <h2>Lease check</h2>
-          <p>
-            Paste a Romanian rental contract. We flag risky clauses, list what is missing, and
-            compare the rent with similar listings in the neighbourhood.
-          </p>
-          <span className="card-cta">Check a lease →</span>
+          <h2>{t('home.leaseTitle')}</h2>
+          <p>{t('home.leaseText')}</p>
+          <span className="card-cta">{t('home.leaseCta')}</span>
         </Link>
 
         <Link to="/events" className="card card-link">
-          <h2>Event groups</h2>
-          <p>
-            Pick an event you want to go to. We put you in a small group of 3 to 5 people with
-            similar interests, so you never have to go alone.
-          </p>
-          <span className="card-cta">Browse events →</span>
+          <h2>{t('home.eventsTitle')}</h2>
+          <p>{t('home.eventsText')}</p>
+          <span className="card-cta">{t('home.eventsCta')}</span>
         </Link>
       </div>
     </>

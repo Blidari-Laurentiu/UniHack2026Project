@@ -6,7 +6,7 @@ import { getAnalysisDetails } from '../../api.js';
 import LeaseError from './LeaseError.jsx';
 import { formatters } from './format.js';
 import { AGGREGATE_SQL, MEDIAN_SQL, TREND_SQL } from './howSql.js';
-import { rich } from './i18n.jsx';
+import { rich } from '../../i18n.jsx';
 import { useT } from './strings.js';
 
 const REDACTED = '[REDACTED]';
