@@ -54,6 +54,10 @@ AUTHED = [
     ("get", "/student/status", None),
     ("post", "/student/start", {"university": "uvt", "email": "ana@e-uvt.ro"}),
     ("post", "/student/confirm", {"code": "123456"}),
+    ("get", "/account", None),
+    ("post", "/account/password-reset", None),
+    ("delete", "/account/mfa", None),
+    ("delete", "/account", None),
 ]
 
 

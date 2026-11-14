@@ -153,7 +153,7 @@ def test_new_user_is_not_a_student(client):
     r = client.get("/student/status", headers=user())
     assert r.status_code == 200
     assert r.json() == {"is_student": False, "university": None, "student_email": None,
-                        "verified_at": None, "pending": None}
+                        "verified_at": None, "expires_at": None, "expired": False, "pending": None}
 
 
 def test_full_flow_makes_a_student(client, outbox):
@@ -186,6 +186,8 @@ def test_full_flow_makes_a_student(client, outbox):
         ("uvt", "ana@uvt.ro", "use your student email for UVT (@e-uvt.ro)"),
         ("upt", "ana@e-uvt.ro", "use your student email for UPT (@student.upt.ro)"),
         ("harvard", "ana@harvard.edu", "unknown university"),
+        # One mailbox, one account: a +tag would let the same mailbox verify many accounts.
+        ("uvt", "ana.pop+second@e-uvt.ro", "use your university email without a +tag"),
     ],
 )
 def test_wrong_university_email_is_refused_and_nothing_is_sent(client, outbox, university, email, detail):
@@ -344,3 +346,109 @@ def test_old_claim_based_students_are_reset_by_the_schema(conn):
     rows = {r["auth0_sub"]: r["is_student"] for r in conn.execute(
         "select auth0_sub, is_student from users where auth0_sub = any(%s)", ([sub, seed],))}
     assert rows == {sub: False, seed: True}
+
+
+# --- Valid for one year ---------------------------------------------------------------------
+
+
+def verify(client, outbox, headers, email, university="uvt"):
+    assert start(client, headers, email, university).status_code == 202
+    r = client.post("/student/confirm", headers=headers, json={"code": outbox.code})
+    assert r.status_code == 200
+    return r.json()
+
+
+def age_verification(conn, email, interval):
+    conn.execute(
+        "update users set student_verified_at = now() - %s::interval where student_email = %s",
+        (interval, email),
+    )
+
+
+def test_status_says_when_it_ends(client, outbox):
+    from datetime import datetime, timedelta, timezone
+
+    body = verify(client, outbox, user(), f"x{tag()}@e-uvt.ro")
+    ends = datetime.fromisoformat(body["expires_at"])
+    assert timedelta(days=364) < ends - datetime.now(timezone.utc) < timedelta(days=367)
+    assert body["expired"] is False
+
+
+def test_still_a_student_after_eleven_months(client, conn, outbox):
+    h, email = user(), f"x{tag()}@e-uvt.ro"
+    verify(client, outbox, h, email)
+    age_verification(conn, email, "11 months")
+    assert client.get("/me", headers=h).json()["is_student"] is True
+    assert client.get("/student/status", headers=h).json()["expired"] is False
+
+
+def test_after_a_year_the_status_ends_everywhere(client, conn, outbox):
+    h, email = user(), f"x{tag()}@e-uvt.ro"
+    verify(client, outbox, h, email)
+    age_verification(conn, email, "1 year 1 day")
+
+    assert client.get("/me", headers=h).json()["is_student"] is False
+    assert client.get("/profile", headers=h).json()["is_student"] is False
+    status = client.get("/student/status", headers=h).json()
+    assert status["is_student"] is False
+    assert status["expired"] is True
+    assert status["student_email"] == email and status["university"] == "uvt"  # kept, to verify again
+
+
+def test_expired_badge_is_gone_from_the_group_card(client, conn, outbox):
+    """Other people see it too: the group members query reads the same rule."""
+    from routers.events import _load_groups
+
+    h, email = user(), f"x{tag()}@e-uvt.ro"
+    verify(client, outbox, h, email)
+    me = client.get("/me", headers=h).json()["id"]
+    event_id = conn.execute(
+        "insert into events (title, venue, starts_at, slot, description) "
+        "values ('Test', 'Test', now() + interval '30 days', 'weekend_evening', 'x') returning id"
+    ).fetchone()["id"]
+    group_id = conn.execute(
+        "insert into event_groups (event_id, meet_at, note) values (%s, now(), 'x') returning id", (event_id,)
+    ).fetchone()["id"]
+    conn.execute("insert into group_members (group_id, user_id) values (%s, %s)", (group_id, me))
+
+    assert _load_groups(conn, [group_id])[0].members[0].is_student is True
+    age_verification(conn, email, "1 year 1 day")
+    assert _load_groups(conn, [group_id])[0].members[0].is_student is False
+
+
+def test_verify_again_after_it_expired(client, conn, outbox):
+    h, email = user(), f"x{tag()}@e-uvt.ro"
+    verify(client, outbox, h, email)
+    age_verification(conn, email, "13 months")
+    conn.execute("update student_verifications set created_at = created_at - interval '13 months'")
+
+    body = verify(client, outbox, h, email)  # the same mailbox is still theirs
+    assert body["is_student"] is True and body["expired"] is False
+    assert client.get("/me", headers=h).json()["is_student"] is True
+
+
+def test_expired_email_still_belongs_to_its_account(client, conn, outbox):
+    """An expired student keeps the mailbox: another account cannot take it."""
+    email = f"x{tag()}@e-uvt.ro"
+    verify(client, outbox, user(), email)
+    age_verification(conn, email, "2 years")
+    r = start(client, user(), email)
+    assert r.status_code == 409
+    assert r.json() == {"detail": student_router.EMAIL_TAKEN}
+
+
+def test_cannot_renew_before_it_expires(client, conn, outbox):
+    h, email = user(), f"x{tag()}@e-uvt.ro"
+    verify(client, outbox, h, email)
+    age_verification(conn, email, "11 months")
+    conn.execute("update student_verifications set created_at = created_at - interval '11 months'")
+    r = start(client, h, email)
+    assert r.status_code == 409
+    assert r.json() == {"detail": student_router.ALREADY_STUDENT}
+
+
+def test_sample_users_never_expire(client, conn):
+    """Seeded users have the flag without a verification date."""
+    name = f"test-seedlike-{tag()}"
+    conn.execute("insert into users (auth0_sub, is_student) values (%s, true)", (f"dev|{name}",))
+    assert client.get("/me", headers={"X-Dev-User": name}).json()["is_student"] is True

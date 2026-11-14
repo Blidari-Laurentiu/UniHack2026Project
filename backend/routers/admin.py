@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 
 from auth import ADMIN_ROLE, MODERATOR_ROLE, require_role
 from db import get_conn
+from services.student import active_sql
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -17,8 +18,8 @@ MAX_ROWS = 200
 def list_users(conn=Depends(get_conn)):
     """The newest users, at most MAX_ROWS. Admin only."""
     return conn.execute(
-        """
-        select id, auth0_sub, display_name, email, is_student, created_at
+        f"""
+        select id, auth0_sub, display_name, email, {active_sql()} as is_student, created_at
         from users
         order by created_at desc, id
         limit %s

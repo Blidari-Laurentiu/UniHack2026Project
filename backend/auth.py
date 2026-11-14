@@ -27,6 +27,7 @@ from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBea
 
 from config import settings
 from db import get_conn
+from services.student import active_sql
 
 log = logging.getLogger("uvicorn.error")
 
@@ -125,15 +126,16 @@ def upsert_user(conn, auth0_sub: str, email: str | None, display_name: str | Non
     """Insert or update the user by auth0_sub and return the row as a dict.
 
     is_student is never set here: only a completed student verification sets it
-    (routers/student.py), never a token claim.
+    (routers/student.py), never a token claim. The returned is_student is false once
+    that verification is over a year old.
     """
     row = conn.execute(
-        """
+        f"""
         insert into users (auth0_sub, email, display_name)
         values (%s, %s, %s)
         on conflict (auth0_sub) do update
             set email = coalesce(excluded.email, users.email)
-        returning id, auth0_sub, display_name, email, is_student, created_at
+        returning id, auth0_sub, display_name, email, {active_sql("users")} as is_student, created_at
         """,
         (auth0_sub, email, display_name),
     ).fetchone()

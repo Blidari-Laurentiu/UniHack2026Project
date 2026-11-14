@@ -1,10 +1,17 @@
-import { getMe } from '../api.js';
+import { getAccount, getInterests, getMe } from '../api.js';
+import { useAuth } from '../auth/index.js';
 import ErrorBox from '../components/ErrorBox.jsx';
 import useApi from '../useApi.js';
+import DeleteAccount from './account/DeleteAccount.jsx';
+import SecurityCard from './account/SecurityCard.jsx';
+import ProfilePanel from './events/ProfilePanel.jsx';
 import StudentVerification from './student/StudentVerification.jsx';
 
 export default function Me() {
+  const { user: authUser } = useAuth();
   const { data: me, error, loading, reload } = useApi(getMe);
+  const interests = useApi(getInterests);
+  const account = useApi(getAccount);
 
   return (
     <>
@@ -37,7 +44,15 @@ export default function Me() {
           </dl>
         )}
       </section>
+      {me && (
+        <section className="card">
+          <ErrorBox error={interests.error} onRetry={interests.reload} />
+          <ProfilePanel interests={interests.data || []} authUser={authUser} onSaved={reload} />
+        </section>
+      )}
       {me && <StudentVerification onChange={reload} />}
+      {me && <SecurityCard account={account} />}
+      {me && <DeleteAccount account={account} />}
     </>
   );
 }

@@ -126,6 +126,7 @@ Environment variables: the same names as `backend/.env`, with these differences:
 | `APP_ENV` | `production` (turns the `X-Dev-User` bypass off) |
 | `DEMO_CACHE` | `1` (the demo lease answers without calling Gemini) |
 | `CORS_ORIGINS` | the exact frontend origin, e.g. `https://your-project.vercel.app`, with no trailing slash |
+| `AUTH0_MGMT_CLIENT_ID`, `AUTH0_MGMT_CLIENT_SECRET` | a Machine to Machine application authorised for the Auth0 Management API with `read:authentication_methods`, `delete:authentication_methods` and `delete:users`; needed to turn 2FA off and to delete an account |
 | `BREVO_API_KEY` | the Brevo API key; student verification codes are sent through Brevo's HTTPS API, because Render's free plan blocks SMTP ports |
 | `MAIL_FROM` | `Newcomer Hub <address>`, where the address is a sender verified in Brevo |
 
