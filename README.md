@@ -5,19 +5,21 @@ UniHack 8 project (team of 2, 48 hours). A web app for people who have just move
 - **Lease check (Feature A).** Paste a Romanian lease, or upload it as a PDF (our server reads the PDF's text into the form; scans are not supported). Gemini returns a clause checklist (risky clauses, missing clauses, overall risk), and a price verdict compares the rent with neighbourhood listings. The price verdict still works when Gemini fails. CNP, IBAN and ID series are removed from the text before it goes to Gemini or the database.
 - **Event groups (Feature B).** Set your interests and availability, join an event, and get matched into a group of 3 to 5 people with a "why you match" line.
 
+The whole site is in English or Romanian (switch in the top bar). Students can verify with a code sent to their university email, and the Me page has account settings.
+
 Stack: FastAPI + psycopg 3 on Tiger Cloud (Postgres + TimescaleDB), Google Gemini, Auth0, React + Vite.
 
 **Live demo:** https://uni-hack2026-project.vercel.app (frontend) and https://unihack2026project.onrender.com/docs (API). The backend sleeps after 15 minutes without traffic, so the first request can take about a minute.
 
 More documentation:
 
-- [docs/PLAN.md](docs/PLAN.md): the full plan, phases and tasks.
+- [docs/PLAN.md](docs/PLAN.md): project status: what is done, what is left, and the decisions.
 - [API.md](API.md): the API contract (endpoints, auth, example responses).
 - [CLAUDE.md](CLAUDE.md): project rules and commands.
 
 ## Setup on a new laptop
 
-You need Python 3.12, Node 20 or newer, and Git. Ask your teammate for `DATABASE_URL` and the Auth0 values in a direct message. Never commit them.
+You need Python 3.14 (`requirements.txt` is pinned against it), Node 20 or newer, and Git. Ask your teammate for `DATABASE_URL` and the Auth0 values in a direct message. Never commit them.
 
 ### 1. Clone
 
@@ -43,9 +45,13 @@ cp .env.example .env               # then fill in the real values
 | `DATABASE_URL` | Tiger Cloud connection string (from your teammate) |
 | `AUTH0_DOMAIN` | e.g. `your-tenant.eu.auth0.com` |
 | `AUTH0_AUDIENCE` | `https://newcomer-hub/api` (must match the frontend) |
+| `AUTH0_MGMT_CLIENT_ID`, `AUTH0_MGMT_CLIENT_SECRET` | the Machine to Machine app (see [Auth0](#auth0)), used to turn 2FA off and to delete an account. Can stay empty on a laptop. |
 | `GEMINI_API_KEY` | your own key from Google AI Studio |
 | `GEMINI_MODEL` | `gemini-3.1-flash-lite` |
+| `DEMO_CACHE` | `0`. With `1`, the demo lease (English interface) answers from a saved report instead of calling Gemini. |
 | `CORS_ORIGINS` | `http://localhost:5173` |
+| `MAIL_FROM`, `BREVO_API_KEY` | sender and Brevo key for the student code emails. Leave the key empty on a laptop: the code is printed in the server log. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | SMTP instead of Brevo, for local use only (Render's free plan blocks SMTP). |
 | `APP_ENV` | `dev` on laptops. Only `dev` allows seeding, reset and the `X-Dev-User` login bypass. Left unset, it is `production` (bypass off). |
 
 ### 3. Database schema and seed data
@@ -147,13 +153,17 @@ Environment variables (Production): `VITE_API_URL` (the Render URL, no trailing 
 
 ### Auth0
 
-In the Single Page Application's settings, add the frontend origin to **Allowed Callback URLs**, **Allowed Logout URLs** and **Allowed Web Origins**. Keep `http://localhost:5173` in each list.
+- **Single Page Application:** add the frontend origin to **Allowed Callback URLs**, **Allowed Logout URLs** and **Allowed Web Origins**. Keep `http://localhost:5173` in each list.
+- **Post-Login Action:** adds four custom claims to the access token, under `https://newcomer-hub/`: `email`, `email_verified`, `roles` and `mfa` (true when the login used a second factor). Without `email_verified`, every endpoint that needs a login answers 403 "verify your email address first". Admins also need `mfa`. When the login has `enroll_mfa=true`, the Action shows the 2FA enrolment page.
+- **Machine to Machine application:** authorised for the Auth0 Management API with `read:authentication_methods`, `delete:authentication_methods` and `delete:users`. Its id and secret go in `AUTH0_MGMT_CLIENT_ID` and `AUTH0_MGMT_CLIENT_SECRET`.
 
 ### Check after a deploy
 
 - `/health` and `/health/db` on the backend return 200.
-- Log in on the frontend, then open `/me`.
+- Log in on the frontend with an account whose email is verified, then open `/me`.
 - Run a lease check: paste `data/sample_leases/demo_ro.txt`, choose Circumvalațiunii, 2 rooms, 500 EUR, English. Expect **Fair price** and **High risk**.
+- Upload `data/sample_leases/demo_ro.pdf` on the lease page. Its text fills the form.
+- On `/me`, verify a UVT, UPT or UMFT student email. The 6-digit code arrives by email.
 - Join an event and run a match.
 - Reload the page on `/lease/history/<id>`.
 
@@ -181,7 +191,7 @@ git pull origin main                     # merge the latest main into your branc
 
 Rules:
 
-- Edit only your own feature files. A owns lease and pricing; B owns events, profile and matching.
+- Edit only your own feature files. A owns lease, pricing and student verification; B owns events, profile, matching and account settings.
 - Shared files (`backend/main.py`, `config.py`, `auth.py`, `frontend/src/api.js`, `db/schema/00_shared.sql`, `API.md`): message your teammate first and keep the change small.
 - After pulling, rerun `pip install -r requirements.txt`, `npm install` and `python db/apply_schema.py` if those files changed.
 - Never commit `.env`, keys, passwords or database dumps. If a secret gets committed, deleting the file is not enough: rotate the password or key right away.
