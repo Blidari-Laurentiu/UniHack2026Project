@@ -1,163 +1,112 @@
-# Handoff prompt: Timișoara Newcomer Hub, state on 2026-11-14
+# Handoff prompt: Timișoara Newcomer Hub, state on Saturday 2026-11-14, about 16:30
 
 Paste everything below the line into a new Claude Code session started in the repo root (or tell Claude: "Read docs/HANDOFF_PROMPT.md and follow it").
 
 ---
 
-You are joining a hackathon project in progress. Read this whole brief before you do anything. Then do the "First steps" at the end and wait for my go before changing code or touching any external service.
+You are joining a hackathon project in progress. You are working for **Laurentiu (Person A)**. Read this whole brief first, then do "First steps" at the end.
 
-## 1. The project
+## 1. The project and the deadline
 
-**Timișoara Newcomer Hub**, built for UniHack 8 by a team of two in 48 hours (started Friday 2026-11-13; the demo is on Sunday, so ask me for the exact submission and pitch times). It helps newcomers to Timișoara, often international students, with two problems:
+**Timișoara Newcomer Hub**, UniHack 8, team of two, 48 hours.
 
-- **Feature A, lease check** (owner: Laurentiu, "Person A"). The user pastes a Romanian rental contract. Gemini returns a clause checklist: risky clauses quoted in the original language, missing clauses and an overall risk. A price verdict compares the rent with the neighbourhood median from a listings table (fair within ±10%, more than 30% below = possible scam, city-wide fallback under 5 local listings). Pricing must still answer when Gemini fails.
-- **Feature B, event groups** (owner: Petru, "Person B"). The user sets interests and availability and joins an event. `POST /events/{id}/match` forms groups of 3 to 5 with a "why you match" line.
+- **Feature A, lease check** (Laurentiu, Person A): paste a Romanian lease; Gemini returns a clause checklist; a price verdict compares the rent with the neighbourhood median from a TimescaleDB listings table.
+- **Feature B, event groups** (Petru, Person B): set interests and availability, join an event, `POST /events/{id}/match` forms groups of 3 to 5.
 
-The pitch closes on one principle: *a newcomer can trust what they see*. Each sponsor has a concrete demo moment: **Gemini** (clause check), **Tiger Data / TimescaleDB** (hypertable, `percentile_cont` medians, continuous aggregates) and **Auth0** (login, verified-student badge from a custom claim).
+**Deadline: Sunday 2026-11-15, 13:00. No commits after that.** There is **no stage pitch**. Judging is a **1-on-1 walkthrough** where a judge sits with the team and checks what was built. So there are no slides and no stage rehearsals; we need a short judge walkthrough and a deployed site that works.
 
-## 2. Read these first (they are the source of truth)
+Source of truth, read before changing anything: `CLAUDE.md` (rules, follow exactly), `docs/PLAN.md`, `API.md`, `README.md` (now has a Deployment section), `docs/PITCH_A.md` (Person A's talk track, click path and proof SQL).
 
-- `CLAUDE.md`: rules, layout and commands. Follow it exactly.
-- `docs/PLAN.md`: the full plan, phases, gates and checklists.
-- `API.md`: the API contract. Change it first, then the code.
-- `README.md`: setup on a new laptop, the Docker build, `APP_ENV`.
-- `docs/PITCH_A.md`: Person A's 2-minute talk track, demo click path and proof SQL with real output.
+## 2. What is deployed (done today)
 
-## 3. Stack and layout (short version)
+| Part | Host | URL |
+| --- | --- | --- |
+| Backend | Render, free Docker web service, Frankfurt | `https://unihack2026project.onrender.com` |
+| Frontend | Vercel (Hobby), root directory `frontend` | `https://uni-hack2026-project.vercel.app` |
 
-- **Backend:** FastAPI, psycopg 3 + psycopg_pool, Tiger Cloud (Postgres + TimescaleDB 2.32), google-genai, Auth0 (PyJWT + PyJWKClient, RS256). Python 3.14 (the Dockerfile matches the tested venv).
-- **Frontend:** React 18 + Vite (JavaScript), react-router-dom 7, @auth0/auth0-react, one plain CSS file, no UI library. Every request goes through `frontend/src/api.js`.
-- **DB:** `db/schema/00_shared.sql`, `10_lease.sql` (A), `20_events.sql` (B); `db/apply_schema.py`, `reset_db.py`, `seed.py` (calls `seed_listings.py` and `seed_events.py`, `random.seed(42)`).
-- **Config:** env only, through `backend/config.py`. `APP_ENV` now **defaults to `production`**, so the `X-Dev-User` bypass needs an explicit `APP_ENV=dev`. Frontend `VITE_DEV_USER` makes the UI send that header (dev only).
+Both redeploy on every merge to `main`. Secrets are only in the hosts' dashboards; Laurentiu enters them himself. Never print or commit a secret.
 
-## 4. What has been done
+Verified from the command line at about 16:15:
 
-All work reached `main` through squash-merged PRs #1 to #16, plus one direct commit (`28b5d17`, code review fixes). Current `main`: **226 backend tests pass**, and `npm run build` passes.
+- Backend `/health` and `/health/db` return 200 (it reaches Tiger Cloud).
+- `/me` returns 401 without a token **and** with `X-Dev-User`, so `APP_ENV=production` is in effect and the dev bypass is off.
+- CORS preflight from the Vercel origin returns 200 with the right `access-control-allow-origin`; an unknown origin is refused.
+- Frontend `/`, `/lease`, `/events`, `/me` and the deep link `/lease/history/abc` all return 200 with the app shell, so the `frontend/vercel.json` rewrite works. The built bundle contains the Render URL.
 
-**Phase 1, skeleton (both):** backend skeleton, schema and auth (#1 API contract with Pydantic schemas and API.md), frontend shell with Auth0 and api.js (#2, Petru), README and repo review (#3), cleanup (#4).
+Render settings that matter (the first build failed until these were set): Root Directory empty, Dockerfile Path `./backend/Dockerfile`, Docker Build Context Directory `.`, health check `/health`. Env on Render: the `backend/.env` names plus `APP_ENV=production`, `DEMO_CACHE=1`, `CORS_ORIGINS=https://uni-hack2026-project.vercel.app`. Vercel env: `VITE_API_URL` (the Render URL) and the three `VITE_AUTH0_*` values; `VITE_DEV_USER` is not set and must never be.
 
-**Phase 2, Feature A (Laurentiu):**
-- #5: three sample Romanian leases (`data/sample_leases/`, invented names, no real IDs) and `data/rent_ranges.md` for 10 neighbourhoods.
-- #7: `db/seed_listings.py`, now **about 1000 listings** over 12 months, labelled as sample data in the UI.
-- #8: `services/pricing.py`, the median and the city fallback in one query.
-- #9: `services/gemini.py`. Redaction of CNP, IBAN, ID card and passport numbers happens before Gemini and before saving. It also has structured output against the `LeaseReport` schema, Pydantic validation, one retry, and `DEMO_CACHE=1` serving `demo_ro.json` for `demo_ro.txt`.
-- #10: real `/lease` and `/pricing` endpoints. Gemini and pricing run in parallel, and results are saved to `lease_analyses`.
-- #11: the lease page: form, loading state, report, price badge, past checks.
+The Render free instance **sleeps after 15 minutes without traffic** and takes about a minute to wake. The first request after a sleep is slow; that is not a bug.
 
-**Phase 2, Feature B (Petru):**
-- #6: Auth0 configured, with a Post-Login Action adding the `https://newcomer-hub/email` and `https://newcomer-hub/student` claims. Also events, join/leave, the matcher, profile and the events pages.
+## 3. The one thing blocking right now
 
-**Phase 3, polish:**
-- #12 (A): neighbourhood median bar chart.
-- #13 and #14 (A): `/lease/history` (filters in the URL, reset) and `/lease/history/:id` (404 card).
-- #15 (A): `listings` is a hypertable. Two continuous aggregates, `listings_monthly` and `listings_monthly_city`, use exact `percentile_cont`, hourly refresh policies and real-time aggregation for the current month. They feed the price-trend chart (header `X-Trend-Source`).
-- #16 (A): `GET /lease/analyses/{id}/details` and the **"How this was checked"** panel under every lease result. It has three tabs: the redacted text sent to Gemini, Gemini's raw JSON and the SQL. A test fails if the SQL shown on the page drifts from the SQL the backend runs. This PR also added `docs/PITCH_A.md`, backup screenshots in `docs/pitch-a/`, a favicon and the browser-checked history pages.
-- B: the verified-student badge (on `/me`, the events page and group cards). Leave group: leaving a group of 3 dissolves it, and the others go back to waiting for the next match.
-- `28b5d17` (review fixes, both features):
-  - The production default for `APP_ENV`, a root `.dockerignore` allowlist, and a Dockerfile built from the repo root so the demo leases are in the image.
-  - Pinned requirements.
-  - `/lease/analyze` no longer holds a pooled connection while Gemini runs. A rate limit allows 30 checks per user per hour (429).
-  - Database errors come back as JSON 503 with CORS headers.
-  - Match needs the caller on the event (403). Join or match on a started event gives 409.
-  - Seeded event times use Europe/Bucharest.
+**Login on the deployed site fails with Auth0's "Callback URL mismatch".** Only Petru can open the Auth0 dashboard. He has been asked to add `https://uni-hack2026-project.vercel.app` (https, no trailing slash, no path) to **Allowed Callback URLs**, **Allowed Logout URLs** and **Allowed Web Origins** of the Single Page Application, keep `http://localhost:5173` in each, and click **Save Changes**. If it still fails after he says it is done, the usual causes are: not saved, a trailing slash, or the wrong application (its Client ID must match `VITE_AUTH0_CLIENT_ID`).
 
-**Things worth knowing:**
-- In TimescaleDB 2.32, `timescaledb_information.continuous_aggregates` has no `finalized` column, and `jobs.hypertable_name` holds the aggregate's own name.
-- On Windows, write commit messages to a file and use `git commit -F`.
-- `frontend/package-lock.json` often shows a local change (an older npm dropping `libc` fields). Never commit it as part of an unrelated task.
-- Person A's backend may already be on port 8000. Use spare ports (e.g. 8011 and 5181) for your own test runs, and stop every server you start.
-- A browser run left two saved lease checks for the dev user `pitch-demo` in the shared database. Reseed on pitch morning (it is in PITCH_A.md).
+The Auth0 domain starts with `dev-`. That is just the auto-generated tenant name. It has nothing to do with `APP_ENV=dev` or the dev bypass, and it does not need changing.
 
-## 5. What is left (by priority)
+**Nothing behind login has been checked on the deployed site yet.** As soon as login works, Laurentiu runs this in the browser and reports back:
 
-Must-haves are done. Gate 2 ("both features end to end on main") looks met but has never been ticked together in `docs/PLAN.md`.
+1. Log in, open `/me`.
+2. Lease demo from `docs/PITCH_A.md`: paste `data/sample_leases/demo_ro.txt`, Circumvalațiunii, 2 rooms, €500, English. Expect **Fair price** and **High risk** in about a second. A fast answer confirms `DEMO_CACHE` works in the container; a slow one means the demo files are missing from the image and Gemini was called live.
+3. Open **How this was checked** and click the three tabs; scroll to the price trend chart.
+4. Open a saved check from History and reload the page (deep link).
+5. Join an event and run a match.
+6. Repeat a quick pass at 375 px.
 
-1. **Deployment.** Vultr is not working, so we need another free host (section 6). This is the biggest open risk for the demo.
-2. **Person B, report button + `reports` table.** The table exists in `20_events.sql` (`reporter_id`, `reported_user_id`, `event_id`, `group_id`, `reason`, `created_at`), but there is no endpoint, schema, api.js function or button. Petru should build it, or the team should agree to cut it; it is a should-have.
-3. **Person B, pitch part (Auth0 + matching).** Not started. Mirror `docs/PITCH_A.md` (talk track, click path, proof) as `docs/PITCH_B.md`.
-4. **Together, events pages check:** error, loading and empty states, plus a 375 px mobile check, as was done for the lease pages.
-5. **Together, demo:** one demo script for both halves, a seed reset step, slides, feature freeze before the rehearsal, then two rehearsals.
-6. **Housekeeping:** tick the Gate 1 and Gate 2 boxes in `docs/PLAN.md` after checking them together, and tick "Send `DATABASE_URL` to Person B" if it was done.
-7. **Stretch, only if everything above is done:** PDF lease upload, Gemini icebreakers per group (must never block group creation). Vultr is dropped.
-8. **After the event:** delete the Tiger service and revoke the Gemini keys used in the demo.
+## 4. What is left, with times
 
-## 6. Deployment: replacing Vultr
+Decisions already made, do not reopen them: Render for the backend (Koyeb's pricing page no longer lists a free instance); Vercel for the frontend; slides dropped; **Petru builds the report button**, and if it is not merged by the 21:00 freeze it is cut.
 
-Recommended setup (free, no server to manage, and it fits our Dockerfile and a Vite build). Pricing and limits change often, so **check each provider's current pricing page before committing to it**, and tell me if anything below is out of date.
+**Saturday**
 
-**Backend: Koyeb, free instance, Frankfurt region.**
-- Why:
-  - It deploys our existing `backend/Dockerfile` straight from GitHub.
-  - Frankfurt is the closest free region to Timișoara (also check which region our Tiger service is in).
-  - It scales to zero only after 1 hour without traffic, and wakes in seconds.
-- Limits: 1 free instance per organization, 512 MB RAM, 0.1 vCPU. That is enough for FastAPI plus the pool (max 5 connections).
-- Build settings: Dockerfile `backend/Dockerfile`, **build context = repo root** (the image needs `data/sample_leases/` for `DEMO_CACHE`). The container listens on `$PORT`.
-- Health check: `GET /health`, with `/health/db` checked by hand after deploy.
+| Time | Laurentiu, with your help | Petru |
+| --- | --- | --- |
+| On Petru's Auth0 fix | Browser checklist from section 3. Fix what fails. | Auth0 URLs |
+| about 17:15 to 18:15 | Together: events pages on the deployed site (error, loading and empty states, 375 px). Then tick Gate 1, Gate 2 and "Send `DATABASE_URL` to Person B" in `docs/PLAN.md`, only after Laurentiu confirms each. | same |
+| 18:15 to 20:30 | Write `docs/DEMO.md` (see below). Add a "Live demo" line with both URLs to `README.md`. | Report button (`API.md` first, then endpoint, `api.js`, button) and `docs/PITCH_B.md` |
+| **21:00** | **Feature freeze.** Bug fixes only after this. | same |
+| 21:00 to 22:00 | Walkthrough run 1 on the deployed URLs, as if a judge were watching. Fix only what breaks the walkthrough. | same |
 
-**Fallback: Render, free web service (Docker).** It works the same way, but it sleeps after 15 minutes idle and takes about a minute to wake. Open the backend URL about 5 minutes before the pitch and keep a tab hitting `/health`.
+**`docs/DEMO.md`** is written for the two team members to follow during judging. One walkthrough for both halves, about 5 minutes: the two URLs; the warm-up step (open backend `/health` 5 minutes before the slot and keep the tab); part A click path (reuse `docs/PITCH_A.md`, do not duplicate it); part B click path (from `docs/PITCH_B.md` once Petru has written it, otherwise from reading `frontend/src/pages/events/`); what each sponsor (Gemini, Tiger Data, Auth0) sees; the Sunday reseed step; plan B (local `uvicorn` + `npm run dev`, then the screenshots in `docs/pitch-a/`); likely judge questions. `docs/PITCH_A.md` is framed as a stage pitch; leave it, and say in `DEMO.md` that it is now used as a talk track for the 1-on-1.
 
-**Option if someone already has a Google Cloud billing account: Cloud Run.** It has a generous monthly free allowance and fast cold starts, and looks the most "professional", but it needs billing set up. Don't pick it under time pressure unless that is already done.
+**Sunday**
 
-Fly.io and Railway: as far as I know neither has a lasting free tier for new accounts (trial credit only), so verify before considering them.
+| Time | What |
+| --- | --- |
+| 09:00 | Reseed the shared database: `python db/reset_db.py --yes` then `python db/seed.py` (from the repo root, local `APP_ENV=dev`). **This drops every user and saved check, so ask Laurentiu first and have him tell Petru.** Then log in on the deployed site and run the lease demo once so History is not empty. Seeded listing dates are relative to the seed day, so this also restores the exact numbers in `docs/PITCH_A.md`. |
+| 09:30 | Walkthrough run 2 on the deployed URLs. |
+| 10:30 | Last docs fixes. |
+| **12:00** | **Last merge to `main`.** Every merge redeploys Render (a few minutes of downtime), so nothing lands in the final hour. Check both deploys are green. |
+| 13:00 | Commit freeze. |
+| Judging | Warm up the backend 5 minutes before the slot. |
+| After | Delete the Tiger service, revoke the demo Gemini key, delete the Render service. |
 
-**Frontend: Vercel (Hobby) or Cloudflare Pages.**
-- Build settings: root directory `frontend`, build command `npm run build`, output `dist`.
-- Add an **SPA fallback** so deep links like `/lease/history/:id` load `index.html`. On Vercel use a `vercel.json` rewrite; Cloudflare Pages serves `index.html` for unknown paths when there is no `404.html`.
-- Build-time env: `VITE_API_URL` = backend URL, plus `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID` and `VITE_AUTH0_AUDIENCE`. **Never set `VITE_DEV_USER` in production.**
+## 5. Repo state
 
-**Backend env on the host** (set them in the host's dashboard; never commit them):
-- `DATABASE_URL`, with SSL as Tiger requires.
-- `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, `GEMINI_API_KEY`, `GEMINI_MODEL`.
-- `CORS_ORIGINS` = the exact frontend origin.
-- `APP_ENV=production`, which disables `X-Dev-User`.
-- `DEMO_CACHE=1`, so the demo lease answers instantly.
+- `main` is at `06bcf87` (PR #19, squash-merged: `frontend/vercel.json`, README Deployment section, the first version of this file). 226 backend tests pass; `npm run build` passes with no warnings.
+- **This file was rewritten after #19 and is not committed.** Commit it with the next docs PR (branch `a/demo-script`), not on `main` directly.
+- `frontend/package-lock.json` shows a local change (an older npm dropping `libc` fields). Never commit it.
+- The GitHub repo is **public** (the plan says private). The history was checked: no `.env`, key or connection string was ever committed. Keep it that way.
+- Docker is **not installed** on this laptop, so the image can only be built on Render. If a backend change breaks the build, the Render build log is the only place to see it.
 
-**Auth0:** add the frontend URL to the SPA's Allowed Callback URLs, Allowed Logout URLs and Allowed Web Origins (keep `http://localhost:5173`).
+## 6. How to work here
 
-**Verify after deploy:**
-- `/health` and `/health/db` return 200.
-- Real Auth0 login, then `/me`.
-- The lease demo path from `docs/PITCH_A.md`: fair price, high risk, and the "How this was checked" panel.
-- One event join plus match.
-- A deep-link reload on `/lease/history/<id>`.
-- The phone width.
-- Write the URLs and the "warm it up before the pitch" step into the demo script.
-
-Creating accounts, connecting the GitHub repo, setting secrets and deploying are outward-facing actions. **Ask me before each one**, tell me exactly which values I need to paste myself, and never print or commit secrets.
-
-## 7. Plan ahead
-
-Propose concrete times once I tell you the deadline. The order:
-
-1. **Now:**
-   - Deploy the backend and frontend (section 6) and verify.
-   - Meanwhile Petru builds the report button, or the team cuts it.
-   - One person clicks through the events flow, including 375 px.
-2. **Then:**
-   - Write `docs/PITCH_B.md`.
-   - Merge both pitch halves into one demo script with timings, including the warm-up and the seed reset.
-   - Make the slides. **Feature freeze** after this point; only bug fixes go in.
-3. **Before the pitch:**
-   - Reseed (`python db/reset_db.py --yes` then `python db/seed.py`, with `APP_ENV=dev`, against the shared database).
-   - Rehearse twice on the deployed URLs.
-   - Keep a local run (`uvicorn` + `npm run dev`) and the `docs/pitch-a/` screenshots as plan B.
-4. **After:** delete the Tiger service and revoke the demo Gemini keys.
-
-## 8. How to work in this repo
-
-- One branch per task (`a/...` for Person A, `b/...` for Person B) from an up-to-date `main`, one PR per task, squash merge. `main` must always run.
-- Edit only the files of the person you are working for. For shared files (`main.py`, `config.py`, `auth.py`, `api.js`, `00_shared.sql`, `API.md`), show me the exact small diff first so I can message the other person.
-- Before every PR, run `pytest` and `npm run build` with no errors or warnings. Browser-check UI changes on spare ports, at desktop width and at 375 px.
-- Never commit `.env` files, keys, passwords or dumps. Mark mocks `# MOCK - replace`. Errors are `{"detail": "..."}`.
+- One branch per task (`a/...`), one PR per task, squash merge to `main`. Laurentiu or Petru merges. Opening the PR is fine without asking; merging is not yours.
+- Edit only Person A's files and docs. For shared files (`main.py`, `config.py`, `auth.py`, `api.js`, `00_shared.sql`, `API.md`), show Laurentiu the exact small diff first. Do not touch Petru's events files.
+- Before every PR: `pytest` (in `backend/`, use `.venv\Scripts\python -m pytest`) and `npm run build` (in `frontend/`), both clean.
+- On Windows, write commit messages and PR bodies to a file and use `git commit -F` and `gh pr create --body-file`.
+- The shell keeps its working directory between commands. Use absolute paths or `cd` to the repo root at the start of each command.
+- Laurentiu's local backend may be on port 8000. Use spare ports (8011, 5181) for your own runs and stop every server you start.
+- Ask before anything that touches the shared database or an external dashboard. You cannot click in Render, Vercel or Auth0; give Laurentiu the exact field names and values, and for Auth0 write the message he sends to Petru.
+- Read-only `curl` checks against the two deployed URLs are fine at any time.
 - Report results faithfully. If something fails or you skipped a step, say so.
 
-## 9. First steps
+## 7. First steps
 
-1. `git switch main && git pull`, then read the files in section 2.
-2. Run `pytest` (expect 226 passing or more) and `npm run build`.
-3. Ask me:
-   - the submission and pitch times;
-   - who you are working for (Person A or B) in this session;
-   - whether the report button stays or is cut;
-   - which host accounts we already have.
-4. Then give me a short plan for the deployment, with the exact settings for each host and the values I must enter myself. Wait for my go before acting.
+1. `git switch main && git pull`. Check `git status` (expect this file modified and `package-lock.json` modified, nothing else).
+2. Recheck the deploy from the command line: backend `/health` and `/health/db`, frontend `/` and one deep link. Allow up to a minute if the backend was asleep.
+3. Ask Laurentiu:
+   - Has Petru saved the Auth0 URLs, and does login work on the Vercel site now?
+   - Which items of the browser checklist in section 3 passed, and what failed?
+   - Has Petru started the report button and `docs/PITCH_B.md`?
+   - What time is it, so you can adjust the table in section 4.
+4. While waiting for answers, start `docs/DEMO.md` on branch `a/demo-script`. Part A and the logistics do not depend on anyone.

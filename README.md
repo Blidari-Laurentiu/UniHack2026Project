@@ -7,8 +7,11 @@ UniHack 8 project (team of 2, 48 hours). A web app for people who have just move
 
 Stack: FastAPI + psycopg 3 on Tiger Cloud (Postgres + TimescaleDB), Google Gemini, Auth0, React + Vite.
 
+**Live demo:** https://uni-hack2026-project.vercel.app (frontend) and https://unihack2026project.onrender.com/docs (API). The backend sleeps after 15 minutes without traffic, so the first request can take about a minute.
+
 More documentation:
 
+- [docs/DEMO.md](docs/DEMO.md): the judge walkthrough for both features.
 - [docs/PLAN.md](docs/PLAN.md): the full plan, phases and tasks.
 - [API.md](API.md): the API contract (endpoints, auth, example responses).
 - [CLAUDE.md](CLAUDE.md): project rules and commands.
