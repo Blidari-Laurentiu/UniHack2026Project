@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from auth import current_user  # noqa: E402
+from auth import authenticate, current_user  # noqa: E402
 from db import get_conn  # noqa: E402
 from main import app  # noqa: E402
 
@@ -24,7 +24,8 @@ FAKE_USER = {
     "is_student": True,
     "created_at": datetime(2026, 11, 13, tzinfo=timezone.utc),
 }
-EVENT_ID = "e1000000-0000-4000-8000-000000000001"
+FAKE_IDENTITY = {"auth0_sub": "dev|mei", "email": None, "is_student": True, "display_name": "Mei"}
+EVENT_ID ="e1000000-0000-4000-8000-000000000001"
 ANALYSIS_ID = "a1111111-1111-4111-8111-111111111111"
 LEASE_BODY = {
     "lease_text": "CONTRACT DE ÎNCHIRIERE. Proprietarul închiriază chiriașului apartamentul ... " * 2,
@@ -54,6 +55,8 @@ AUTHED = [
 @pytest.fixture
 def client():
     app.dependency_overrides[current_user] = lambda: FAKE_USER
+    # /lease/analyze authenticates without a connection (it upserts on its own short one).
+    app.dependency_overrides[authenticate] = lambda: FAKE_IDENTITY
     app.dependency_overrides[get_conn] = lambda: None
     # No `with`: skips the lifespan, so the DB pool is never opened.
     yield TestClient(app)
@@ -72,6 +75,30 @@ def test_authed_endpoints_need_auth(anon_client, method, path, body):
     r = anon_client.request(method, path, json=body)
     assert r.status_code == 401
     assert "detail" in r.json()
+
+
+@pytest.mark.parametrize(
+    "path", ["/health/db", "/pricing/neighbourhoods", "/events", "/profile/interests"]
+)
+def test_database_down_is_a_json_503_with_cors(path):
+    """A pool timeout inside get_conn must reach the browser as {"detail": ...}, not a bare 500."""
+    from psycopg_pool import PoolTimeout
+
+    from config import settings
+
+    def no_pool():
+        raise PoolTimeout("couldn't get a connection after 30.00 sec")
+        yield  # a generator dependency, like get_conn
+
+    origin = settings.cors_origins_list[0]
+    app.dependency_overrides[get_conn] = no_pool
+    try:
+        r = TestClient(app, raise_server_exceptions=False).get(path, headers={"Origin": origin})
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 503
+    assert set(r.json()) == {"detail"}
+    assert r.headers.get("access-control-allow-origin") == origin
 
 
 @pytest.mark.parametrize("rooms", [0, 4])

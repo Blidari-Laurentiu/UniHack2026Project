@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from db import get_conn
 
@@ -12,8 +12,7 @@ def health():
 
 @router.get("/health/db")
 def health_db(conn=Depends(get_conn)):
-    try:
-        conn.execute("select 1")
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"database unavailable: {type(exc).__name__}")
+    # Any database failure (here or in get_conn) is a 503 {"detail": ...} from main.py's
+    # psycopg.Error handler, without internals in the message.
+    conn.execute("select 1")
     return {"status": "ok", "db": True}

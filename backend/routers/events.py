@@ -1,6 +1,6 @@
 """Feature B (Person B): events, signups and groups."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -38,6 +38,12 @@ def _require_event(conn, event_id: UUID, lock: bool = False) -> dict:
     if row is None:
         raise HTTPException(status_code=404, detail="event not found")
     return row
+
+
+def _require_upcoming(event: dict) -> None:
+    """Joining or matching makes no sense once the event has started: 409."""
+    if event["starts_at"] <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=409, detail="this event has already started")
 
 
 def _load_groups(conn, group_ids: list[UUID]) -> list[Group]:
@@ -133,7 +139,7 @@ def list_events(
 
 @router.post("/{event_id}/join", response_model=SignupOut)
 def join_event(event_id: UUID, user: dict = Depends(current_user), conn=Depends(get_conn)):
-    _require_event(conn, event_id)
+    _require_upcoming(_require_event(conn, event_id))
     # Joining again after leaving puts you at the back of the waiting list.
     row = conn.execute(
         """
@@ -197,6 +203,14 @@ def leave_event(event_id: UUID, user: dict = Depends(current_user), conn=Depends
 @router.post("/{event_id}/match", response_model=MatchResult)
 def run_match(event_id: UUID, user: dict = Depends(current_user), conn=Depends(get_conn)):
     event = _require_event(conn, event_id, lock=True)
+    _require_upcoming(event)
+    # Only people on this event can trigger its matching, not any logged-in user.
+    mine = conn.execute(
+        "select status from event_signups where event_id = %s and user_id = %s",
+        (event_id, user["id"]),
+    ).fetchone()
+    if mine is None or mine["status"] == "left":
+        raise HTTPException(status_code=403, detail="join this event before matching")
 
     waiting = conn.execute(
         """

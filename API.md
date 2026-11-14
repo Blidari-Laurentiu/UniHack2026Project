@@ -3,7 +3,7 @@
 Base URL: `http://localhost:8000` (interactive docs at `/docs`). Models live in `backend/schemas/` (`common.py`, `lease.py`, `events.py`); this file must match them.
 
 - **Auth.** "JWT" means the header `Authorization: Bearer <Auth0 access token>`. When `APP_ENV=dev` only, `X-Dev-User: <name>` can replace it. "Public" routes need no auth.
-- **Errors.** Errors are always `{"detail": "..."}`: 401 for a missing or bad token, 404 for an unknown id, 422 for an invalid body (FastAPI validation; there `detail` is a list), and 503 when price data is unavailable (empty listings table or database error).
+- **Errors.** Errors are always `{"detail": "..."}`: 401 for a missing or bad token, 404 for an unknown id, 422 for an invalid body (FastAPI validation; there `detail` is a list), 429 when the lease-check hourly limit is reached, and 503 when price data is unavailable (empty listings table) or the database is down, on any endpoint.
 - **IDs.** All ids are UUID strings. Times are ISO 8601 with a timezone.
 - **Data.** All endpoints are real and read the database; none are mocked.
 - **Slots.** The availability slots are `weekday_morning`, `weekday_evening`, `weekend_morning`, `weekend_afternoon` and `weekend_evening`.
@@ -81,6 +81,7 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 - `verdict` is `below_market`, `fair`, `above_market` or `suspiciously_low`; `scope` is `neighbourhood` or `city` (city-wide fallback under 5 listings).
 - **When Gemini fails**, `report` is `null` and `report_error` holds a message, but `price_verdict` is always present. The analysis is still saved and reads back the same from `GET /lease/analyses/{id}`; in the list, its `overall_risk` is `null`.
 - **When pricing fails**, `POST /lease/analyze` returns 503 `{"detail": "Price check is unavailable: ..."}` (no listings for that room count) or 503 `{"detail": "Price data is unavailable right now (database error). Please try again."}`, and nothing is saved.
+- **Hourly limit:** after 30 analyses in the last hour, `POST /lease/analyze` returns 429 `{"detail": "You have checked 30 leases in the last hour. Please try again later."}` before calling Gemini.
 - `GET /lease/analyses` is newest first and lists only the caller's analyses; another user's id gives 404.
 - `GET /lease/analyses/{id}/details` shows how an analysis was made: the redacted text exactly as Gemini received it (never the original), Gemini's JSON (`null` when Gemini failed, with `report_error` saying why) and what the price verdict was computed from. Same ownership rule: another user's id gives 404.
 
@@ -108,7 +109,8 @@ Use it to fill the neighbourhood dropdown and the median chart. In JSON, the key
 An unknown event id gives 404 `{"detail": "event not found"}`.
 
 - **Join.** Joining twice changes nothing. Joining again after leaving puts you at the back of the waiting list.
-- **Match.** Groups everyone who is `waiting` for the event (3 to 5 per group, longest-waiting first) and saves the groups. It returns only the groups made by this call; `unmatched_count` is how many people are still waiting. Fewer than 3 waiting gives `"groups": []`.
+- **Match.** Groups everyone who is `waiting` for the event (3 to 5 per group, longest-waiting first) and saves the groups. It returns only the groups made by this call; `unmatched_count` is how many people are still waiting. Fewer than 3 waiting gives `"groups": []`. Only someone on the event (`waiting` or `grouped`) can run it: anyone else gets 403 `{"detail": "join this event before matching"}`.
+- **Started events.** Join and match on an event that has already started give 409 `{"detail": "this event has already started"}`.
 - **Leave.** Leaving a group of 3 dissolves it: the other two go back to `waiting` and are grouped again by the next match.
 - **`signup_count`** counts `waiting` and `grouped` signups. `my_status` is filled in only when the caller is logged in.
 

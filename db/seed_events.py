@@ -6,10 +6,13 @@ Event dates are relative to today, so the list always shows upcoming events.
 """
 import random
 import uuid
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 NAMESPACE = uuid.UUID("6f1f5e0a-7c1b-4d43-9a57-0d2a1c5b8e11")
-EET = timezone(timedelta(hours=2))  # Timișoara winter time
+# Timișoara local time with daylight saving (UTC+2 in winter, UTC+3 in summer), so a 19:00
+# event is 19:00 on the wall clock all year. Needs the tzdata package on Windows.
+EET = ZoneInfo("Europe/Bucharest")
 SLOTS = ["weekday_morning", "weekday_evening", "weekend_morning", "weekend_afternoon", "weekend_evening"]
 
 INTERESTS = [

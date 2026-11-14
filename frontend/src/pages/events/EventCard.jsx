@@ -100,7 +100,8 @@ export default function EventCard({ event, isAuthenticated, myId, onChanged }) {
         {status === 'waiting' && (
           <>
             <span className="badge badge-warn">On the list</span>
-            <button className="btn btn-primary" onClick={match} disabled={busy}>
+            {/* Needs myId (from /me) to tell whether the new groups include this user. */}
+            <button className="btn btn-primary" onClick={match} disabled={busy || !myId}>
               {busy ? 'Matching…' : 'Find my group'}
             </button>
             <button className="btn" onClick={leave} disabled={busy}>

@@ -62,6 +62,14 @@ def test_dev_header_works_in_dev(client, monkeypatch):
     assert client.upsert_calls == ["dev|alice"]
 
 
+def test_app_env_defaults_to_production(monkeypatch):
+    """Without APP_ENV set anywhere, the dev bypass must be off (fail closed)."""
+    from config import Settings
+
+    monkeypatch.delenv("APP_ENV", raising=False)
+    assert Settings(_env_file=None).APP_ENV == "production"
+
+
 def test_dev_header_refused_in_production(client, monkeypatch):
     monkeypatch.setattr(settings, "APP_ENV", "production")
     r = client.get("/me", headers={"X-Dev-User": "alice"})

@@ -9,6 +9,7 @@ return the price verdict.
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 
@@ -17,10 +18,14 @@ from pydantic import ValidationError
 from config import settings
 from schemas.lease import LeaseReport
 
+log = logging.getLogger("uvicorn.error")
+
 REDACTED = "[REDACTED]"
 TIMEOUT_MS = 30_000
 MAX_QUOTE_WORDS = 25
 
+# Repo root / data / sample_leases. The Dockerfile keeps the same layout (/app/backend next to
+# /app/data/sample_leases), so this resolves in the container too.
 SAMPLE_DIR = Path(__file__).resolve().parents[2] / "data" / "sample_leases"
 DEMO_LEASE = SAMPLE_DIR / "demo_ro.txt"
 DEMO_REPORT = SAMPLE_DIR / "demo_ro.json"
@@ -33,8 +38,14 @@ class GeminiError(Exception):
 # ---------- redaction ----------
 
 # IBAN: RO + 2 check digits + 4-letter bank code + 16 characters, spaces allowed between them.
-# Case-sensitive on purpose, so ordinary words starting with "ro" never match.
-_IBAN = re.compile(r"\bRO\d{2} ?[A-Z]{4}(?: ?[0-9A-Z]){16}\b")
+# Any case ("ro49aaaa…" is still an IBAN): words like "România" never match, because the
+# pattern needs two digits right after "ro" and 20 more characters after that.
+_IBAN = re.compile(r"\bRO\d{2} ?[A-Z]{4}(?: ?[0-9A-Z]){16}\b", re.IGNORECASE)
+# CNP after its label, written with spaces, dots or dashes ("CNP: 1 960523 350011").
+# Only next to the label, so phone numbers and amounts with separators are left alone.
+_CNP_LABELLED = re.compile(
+    r"((?i:\bC\.?N\.?P\.?|\bcod(?:ul)? numeric personal)\s*:?\s*)\d(?:[ .\-]?\d){12}(?!\d)"
+)
 # CNP: exactly 13 digits. Phone numbers (10 or 11 digits) and amounts are shorter.
 _CNP = re.compile(r"(?<!\d)\d{13}(?!\d)")
 # ID card: "seria XX nr. 000000", "seria TM, nr: 123456", or "CI TM123456".
@@ -52,6 +63,7 @@ _PASSPORT = re.compile(
 def redact(text: str) -> str:
     """Replace CNP, IBAN, ID card series and number, and passport numbers with [REDACTED]."""
     text = _IBAN.sub(REDACTED, text)
+    text = _CNP_LABELLED.sub(lambda m: m.group(1) + REDACTED, text)
     text = _ID_CARD.sub(REDACTED, text)
     text = _PASSPORT.sub(lambda m: m.group(1) + REDACTED, text)
     text = _CNP.sub(REDACTED, text)
@@ -109,7 +121,11 @@ def _normalise(text: str) -> str:
 
 def _demo_report(redacted: str, ui_language: str) -> LeaseReport | None:
     # The cached report is in English, so a Romanian UI still goes to Gemini.
-    if not settings.DEMO_CACHE or ui_language != "en" or not DEMO_REPORT.exists():
+    if not settings.DEMO_CACHE or ui_language != "en":
+        return None
+    if not (DEMO_LEASE.exists() and DEMO_REPORT.exists()):
+        # Say so loudly: otherwise a deploy without data/sample_leases silently calls Gemini live.
+        log.warning("DEMO_CACHE is on but %s or %s is missing; calling Gemini", DEMO_LEASE, DEMO_REPORT)
         return None
     demo = redact(DEMO_LEASE.read_text(encoding="utf-8"))
     if _normalise(redacted) != _normalise(demo):

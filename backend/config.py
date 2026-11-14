@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     DEMO_CACHE: bool = False
     CORS_ORIGINS: str = "http://localhost:5173"
-    APP_ENV: str = "dev"
+    # Fail closed: the X-Dev-User bypass, seeding and reset need an explicit APP_ENV=dev.
+    APP_ENV: str = "production"
 
     @property
     def cors_origins_list(self) -> list[str]:

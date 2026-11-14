@@ -7,6 +7,7 @@ the seeded listings do not change the numbers. Skipped without a dev database.
 """
 
 import uuid
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 
 import psycopg
@@ -19,7 +20,7 @@ import routers.lease as lease_router
 import routers.pricing as pricing_router
 import services.pricing as pricing_service
 from config import settings
-from db import get_conn
+from db import get_conn, get_connector
 from main import app
 from schemas.lease import LeaseReport, MissingClause, RiskyClause
 from services.gemini import GeminiError
@@ -113,6 +114,8 @@ def gemini(monkeypatch):
 @pytest.fixture
 def client(conn, gemini):
     app.dependency_overrides[get_conn] = lambda: conn
+    # /lease/analyze opens short connections through get_connector: hand out the test one.
+    app.dependency_overrides[get_connector] = lambda: lambda: nullcontext(conn)
     # No `with`: skips the lifespan, so the DB pool is never opened.
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -182,6 +185,52 @@ def test_gemini_failure_still_returns_price(client, conn, gemini, hood):
     }
     assert client.get(f"/lease/analyses/{data['id']}", headers=me).json() == data
     assert client.get("/lease/analyses", headers=me).json()[0]["overall_risk"] is None
+
+
+def test_unexpected_gemini_error_still_returns_price(client, conn, gemini, hood):
+    """Not only GeminiError: any failure on the Gemini side keeps the price verdict."""
+    gemini.error = FileNotFoundError("demo_ro.txt")
+    r = client.post("/lease/analyze", json=body(hood), headers=as_user("mei"))
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["report"] is None
+    assert data["report_error"] == lease_router.GEMINI_UNEXPECTED
+    assert data["price_verdict"]["verdict"] == "above_market"
+
+
+def test_analyze_holds_no_request_long_connection(client, conn, gemini, hood):
+    """/analyze must only use short connections (get_connector), never get_conn: a connection
+    held for the whole request would stay checked out, and lock the user's row, while Gemini runs."""
+    opened = []
+
+    def connector():
+        opened.append(1)
+        return nullcontext(conn)
+
+    def no_request_conn():
+        raise AssertionError("/lease/analyze must not depend on get_conn")
+
+    app.dependency_overrides[get_conn] = no_request_conn
+    app.dependency_overrides[get_connector] = lambda: connector
+    r = client.post("/lease/analyze", json=body(hood), headers=as_user("mei"))
+    assert r.status_code == 200, r.text
+    assert len(opened) == 3  # user upsert + limit check, price query, save
+
+
+def test_hourly_limit_is_a_429_before_gemini(client, gemini, hood, monkeypatch):
+    monkeypatch.setattr(lease_router, "MAX_CHECKS_PER_HOUR", 2)
+    me, other = as_user("mei"), as_user("andrei")
+    for _ in range(2):
+        assert client.post("/lease/analyze", json=body(hood), headers=me).status_code == 200
+    calls = len(gemini.calls)
+
+    r = client.post("/lease/analyze", json=body(hood), headers=me)
+    assert r.status_code == 429
+    assert set(r.json()) == {"detail"}
+    assert len(gemini.calls) == calls  # refused before Gemini
+    assert len(client.get("/lease/analyses", headers=me).json()) == 2
+    # The limit is per user.
+    assert client.post("/lease/analyze", json=body(hood), headers=other).status_code == 200
 
 
 def test_personal_ids_never_reach_gemini_or_the_database(client, conn, gemini, hood):

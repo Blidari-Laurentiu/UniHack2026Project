@@ -1,10 +1,13 @@
-fastapi
-uvicorn[standard]
-psycopg[binary]
-psycopg_pool
-pydantic-settings
-PyJWT[crypto]
-google-genai
-python-multipart
-pytest
-httpx
+# Pinned to the versions the test suite passes on (Python 3.14). Upgrade on purpose, then run pytest.
+fastapi==0.162.5
+uvicorn[standard]==0.54.0
+psycopg[binary]==3.3.9
+psycopg_pool==3.3.3
+pydantic-settings==2.16.3
+PyJWT[crypto]==2.15.1
+google-genai==3.3.0
+tzdata==2026.6  # timezone data for zoneinfo on Windows (db/seed_events.py)
+
+# Tests
+pytest==9.2.0
+httpx==0.28.1

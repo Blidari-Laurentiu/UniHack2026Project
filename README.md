@@ -44,7 +44,7 @@ cp .env.example .env               # then fill in the real values
 | `GEMINI_API_KEY` | your own key from Google AI Studio |
 | `GEMINI_MODEL` | `gemini-3.1-flash-lite` |
 | `CORS_ORIGINS` | `http://localhost:5173` |
-| `APP_ENV` | `dev` on laptops. Only `dev` allows seeding, reset and the `X-Dev-User` login bypass. |
+| `APP_ENV` | `dev` on laptops. Only `dev` allows seeding, reset and the `X-Dev-User` login bypass. Left unset, it is `production` (bypass off). |
 
 ### 3. Database schema and seed data
 
@@ -71,6 +71,12 @@ Check:
 - http://localhost:8000/docs lists every endpoint
 
 Run the tests with `pytest`.
+
+Docker image (build from the repo root, so the demo leases in `data/` are included; `.env` files are never copied, so pass the variables above to the host, with `APP_ENV` not `dev`):
+
+```bash
+docker build -f backend/Dockerfile -t newcomer-hub-api .
+```
 
 ### 5. Frontend
 

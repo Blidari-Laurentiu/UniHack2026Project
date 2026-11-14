@@ -326,12 +326,35 @@ def test_match_needs_three_people(client, world):
 def test_match_only_touches_its_own_event(client, world):
     other_event = world.event("Other game night", world.games)
     elsewhere = world.waiting_users(3, event_id=other_event)
-    world.waiting_users(3)
-    world.user = world.new_user("Organiser")
+    world.user = world.waiting_users(3)[0]
 
     result = client.post(f"/events/{world.event_id}/match").json()
     assert [len(g["members"]) for g in result["groups"]] == [3]
     assert all(world.status_of(u, other_event) == "waiting" for u in elsewhere)
+
+
+def test_only_people_on_the_event_can_match(client, world):
+    users = world.waiting_users(3)
+    url = f"/events/{world.event_id}"
+
+    world.user = world.new_user("Stranger")  # never joined
+    r = client.post(f"{url}/match")
+    assert (r.status_code, r.json()) == (403, {"detail": "join this event before matching"})
+
+    world.user = users[0]
+    client.post(f"{url}/leave")  # left: no longer on the event
+    assert client.post(f"{url}/match").status_code == 403
+    assert all(world.status_of(u) == "waiting" for u in users[1:])  # nobody was grouped
+
+
+def test_started_event_cannot_be_joined_or_matched(client, world):
+    past = world.event("Yesterday's game night", world.games, starts_at=datetime(2020, 1, 1, tzinfo=timezone.utc))
+    world.waiting_users(3, event_id=past)
+    world.user = world.new_user("Mei")
+    for path in (f"/events/{past}/join", f"/events/{past}/match"):
+        r = client.post(path)
+        assert (r.status_code, r.json()) == (409, {"detail": "this event has already started"})
+    assert world.status_of(world.user, past) is None
 
 
 def test_people_who_left_are_not_matched(client, world):
@@ -340,6 +363,7 @@ def test_people_who_left_are_not_matched(client, world):
     world.user = users[0]
     client.post(f"{url}/leave")
 
+    world.user = users[1]  # someone still on the event runs the match
     result = client.post(f"{url}/match").json()
     member_ids = [m["user_id"] for g in result["groups"] for m in g["members"]]
     assert sorted(member_ids) == sorted(str(u["id"]) for u in users[1:])

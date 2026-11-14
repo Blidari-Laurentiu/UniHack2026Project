@@ -32,6 +32,39 @@ def test_redacts_cnp(text):
 @pytest.mark.parametrize(
     "text",
     [
+        "CNP: 1 960523 350011, domiciliat",
+        "C.N.P. 196-0523-350011",
+        "cnp 1.960.523.350.011",
+        "codul numeric personal 2 990101 123456.",
+    ],
+)
+def test_redacts_cnp_written_with_separators(text):
+    out = redact(text)
+    assert REDACTED in out
+    assert not re.search(r"\d", out)
+
+
+def test_separated_digits_without_cnp_label_are_kept():
+    text = "Telefon 0722 123 456 7, cont client 1 960523 350011."
+    assert redact(text) == text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "iban ro49aaaa1b31007593840000, deschis",
+        "cont ro49 aaaa 1b31 0075 9384 0000",
+    ],
+)
+def test_redacts_lowercase_iban(text):
+    out = redact(text)
+    assert REDACTED in out
+    assert "ro49" not in out
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
         "IBAN RO00 XXXX 0000 0000 0000 0000, deschis",
         "IBAN RO49AAAA1B31007593840000.",
         "cont RO49 AAAA 1B31 0075 9384 0000",
@@ -233,6 +266,19 @@ def test_demo_cache_off_or_other_text_calls_gemini(fake, monkeypatch):
     monkeypatch.setattr(gemini.settings, "DEMO_CACHE", True)
     analyze_lease(demo + "\n10.1. O clauză în plus.")
     assert len(models.calls) == 2
+
+
+def test_demo_cache_missing_files_falls_back_to_gemini(fake, monkeypatch, tmp_path, caplog):
+    """As in a container built without data/sample_leases: no crash, a warning, then Gemini."""
+    models = fake([json.dumps(VALID)])
+    demo = gemini.DEMO_LEASE.read_text(encoding="utf-8")
+    monkeypatch.setattr(gemini.settings, "DEMO_CACHE", True)
+    monkeypatch.setattr(gemini, "DEMO_LEASE", tmp_path / "demo_ro.txt")
+    monkeypatch.setattr(gemini, "DEMO_REPORT", tmp_path / "demo_ro.json")
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        analyze_lease(demo)
+    assert len(models.calls) == 1
+    assert "DEMO_CACHE is on" in caplog.text
 
 
 def test_demo_cache_is_english_only(fake, monkeypatch):

@@ -5,6 +5,7 @@ Our part of the pitch: the lease check. Gemini reads the contract and Tiger Data
 ## Before going on stage
 
 - Backend with `DEMO_CACHE=1` in `backend/.env`, so `demo_ro.txt` answers from `data/sample_leases/demo_ro.json` in under a second, with no Gemini quota or wifi risk. Every other lease still goes to Gemini live.
+- On the morning of the pitch, run `python db/seed.py`. Seeded listings are dated relative to the seed day and start leaving the 12-month window about 5 days later, which shifts the medians below. Reseeding (fixed random seed) brings back exactly these numbers.
 - Logged in (or `VITE_DEV_USER` set), on `/lease`, with `data/sample_leases/demo_ro.txt` open in an editor, ready to copy.
 - Browser zoom at 125% so the back row can read the JSON.
 - Plan B if the backend is down: the panel screenshots in [`docs/pitch-a/`](pitch-a/) (desktop and 375 px, one per tab).

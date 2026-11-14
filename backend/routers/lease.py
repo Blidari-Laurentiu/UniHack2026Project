@@ -5,6 +5,11 @@ Gemini failing is not an error: the response has report=null and report_error, a
 verdict still comes back. Pricing failing is an error (503), because the verdict is the part
 that must always answer.
 
+Gemini can take up to a minute, so /analyze holds no pooled connection while it waits: the user
+upsert, the price query and the save each run on a short connection of their own (get_connector)
+and commit straight away. Holding one would keep the user's row locked (their other requests
+would hang) and five parallel checks would use up the whole pool.
+
 Storage (lease_analyses): lease_text_redacted only ever holds redacted text. result_json holds
 the LeaseReport, or {"report_error": "..."} when Gemini failed, so a saved analysis reads back
 exactly as it was returned.
@@ -18,8 +23,8 @@ import psycopg
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg.types.json import Jsonb
 
-from auth import current_user
-from db import get_conn
+from auth import authenticate, current_user, upsert_user
+from db import get_conn, get_connector
 from schemas.lease import (
     LeaseAnalysis,
     LeaseAnalysisDetails,
@@ -38,6 +43,13 @@ router = APIRouter(prefix="/lease", tags=["lease"])
 
 NOT_FOUND = "analysis not found"
 DB_DOWN = "Price data is unavailable right now (database error). Please try again."
+GEMINI_UNEXPECTED = "Lease analysis is unavailable right now."
+
+# Gemini quota guard: one account (Auth0 sign-up is open) cannot use it up for everyone.
+MAX_CHECKS_PER_HOUR = 30
+RATE_LIMITED = (
+    f"You have checked {MAX_CHECKS_PER_HOUR} leases in the last hour. Please try again later."
+)
 
 COLUMNS = "id, created_at, neighbourhood, rooms, rent_eur, result_json, price_verdict"
 
@@ -64,38 +76,62 @@ def _to_analysis(row: dict) -> LeaseAnalysis:
     )
 
 
-def _save(conn, user_id, body: LeaseAnalyzeRequest, redacted: str, result: dict, verdict: PriceVerdict):
-    row = conn.execute(
-        f"""
-        insert into lease_analyses
-            (user_id, neighbourhood, rent_eur, rooms, lease_text_redacted, result_json, price_verdict)
-        values (%s, %s, %s, %s, %s, %s, %s)
-        returning {COLUMNS}
-        """,
-        (
-            user_id,
-            body.neighbourhood,
-            body.rent_eur,
-            body.rooms,
-            redacted,
-            Jsonb(result),
-            Jsonb(verdict.model_dump()),
-        ),
-    ).fetchone()
-    conn.commit()
-    return row
+def _start(connect, identity: dict) -> dict:
+    """Upsert the user and enforce the hourly limit (429), on one short connection."""
+    with connect() as conn:
+        user = upsert_user(conn, **identity)
+        recent = conn.execute(
+            "select count(*) as n from lease_analyses"
+            " where user_id = %s and created_at > now() - interval '1 hour'",
+            (user["id"],),
+        ).fetchone()["n"]
+        if recent >= MAX_CHECKS_PER_HOUR:
+            raise HTTPException(status_code=429, detail=RATE_LIMITED)
+        return user
+
+
+def _price(connect, body: LeaseAnalyzeRequest) -> PriceVerdict:
+    with connect() as conn:
+        return price_verdict(conn, body.neighbourhood, body.rooms, body.rent_eur)
+
+
+def _save(connect, user_id, body: LeaseAnalyzeRequest, redacted: str, result: dict, verdict: PriceVerdict):
+    with connect() as conn:
+        row = conn.execute(
+            f"""
+            insert into lease_analyses
+                (user_id, neighbourhood, rent_eur, rooms, lease_text_redacted, result_json, price_verdict)
+            values (%s, %s, %s, %s, %s, %s, %s)
+            returning {COLUMNS}
+            """,
+            (
+                user_id,
+                body.neighbourhood,
+                body.rent_eur,
+                body.rooms,
+                redacted,
+                Jsonb(result),
+                Jsonb(verdict.model_dump()),
+            ),
+        ).fetchone()
+        conn.commit()
+        return row
 
 
 @router.post("/analyze", response_model=LeaseAnalysis)
-async def analyze(body: LeaseAnalyzeRequest, user: dict = Depends(current_user), conn=Depends(get_conn)):
+async def analyze(
+    body: LeaseAnalyzeRequest,
+    identity: dict = Depends(authenticate),
+    connect=Depends(get_connector),
+):
+    # 401 (authenticate) and 429 (_start) both come before Gemini is called.
+    user = await asyncio.to_thread(_start, connect, identity)
     redacted = redact(body.lease_text)
 
-    # Gemini (7 to 28 s) and pricing (one query) run side by side in worker threads.
+    # Gemini (7 to 60 s) and pricing (one query) run side by side in worker threads.
     gemini = asyncio.create_task(asyncio.to_thread(analyze_lease, redacted, body.ui_language))
     try:
-        verdict = await asyncio.to_thread(
-            price_verdict, conn, body.neighbourhood, body.rooms, body.rent_eur
-        )
+        verdict = await asyncio.to_thread(_price, connect, body)
     except (PricingUnavailable, psycopg.Error) as exc:
         gemini.cancel()  # stop waiting; the thread finishes on its own and is ignored
         raise _pricing_error(exc) from exc
@@ -105,9 +141,14 @@ async def analyze(body: LeaseAnalyzeRequest, user: dict = Depends(current_user),
     except GeminiError as exc:
         log.warning("lease analysis without report: %s", exc)
         result = {"report_error": str(exc)}
+    except Exception:
+        # A bug or setup problem on the Gemini side (demo cache file, SDK config) must not cost
+        # the user the price verdict, which is the part that always has to answer.
+        log.exception("unexpected error in lease analysis")
+        result = {"report_error": GEMINI_UNEXPECTED}
 
     try:
-        row = await asyncio.to_thread(_save, conn, user["id"], body, redacted, result, verdict)
+        row = await asyncio.to_thread(_save, connect, user["id"], body, redacted, result, verdict)
     except psycopg.Error as exc:
         log.warning("saving lease analysis failed: %s", type(exc).__name__)
         raise HTTPException(status_code=503, detail="Could not save the analysis. Please try again.") from exc

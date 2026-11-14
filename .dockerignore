@@ -1,0 +1,18 @@
+# Build context is the repo root (docker build -f backend/Dockerfile .).
+# Allowlist: only the backend and the demo leases go in, never secrets or local state.
+*
+!backend/
+!data/sample_leases/
+
+# Secrets: the host passes config as env vars.
+**/.env
+**/.env.*
+
+# Local Python state and things not needed at runtime
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+backend/tests/
+backend/pytest.ini

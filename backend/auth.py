@@ -102,28 +102,39 @@ def upsert_user(
     return dict(row)
 
 
-def current_user(
+def authenticate(
     creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     dev_user: str | None = Depends(dev_user_scheme),
-    conn=Depends(get_conn),
 ) -> dict:
-    """FastAPI dependency: the authenticated users row as a dict."""
+    """FastAPI dependency: who the caller is, from the token or the dev header. Raises 401.
+
+    No database: returns the upsert_user arguments (auth0_sub, email, is_student,
+    display_name). Endpoints that must not hold a connection for long (POST /lease/analyze)
+    use this and upsert on a short connection of their own.
+    """
     if dev_user is not None and dev_bypass_enabled():
         name = dev_user.strip()
         if not name or len(name) > DEV_NAME_MAX:
             raise _unauthorized(f"invalid {DEV_HEADER} header")
-        return upsert_user(conn, f"dev|{name}", None, False, name)
+        return {"auth0_sub": f"dev|{name}", "email": None, "is_student": False, "display_name": name}
 
     if creds is None or creds.scheme.lower() != "bearer" or not creds.credentials:
         raise _unauthorized("missing bearer token")
 
     claims = verify_token(creds.credentials)
     email = claims.get(EMAIL_CLAIM)
-    is_student = claims.get(STUDENT_CLAIM) is True
-    return upsert_user(
-        conn,
-        claims["sub"],
-        email if isinstance(email, str) and email else None,
-        is_student,
-        None,
-    )
+    return {
+        "auth0_sub": claims["sub"],
+        "email": email if isinstance(email, str) and email else None,
+        "is_student": claims.get(STUDENT_CLAIM) is True,
+        "display_name": None,
+    }
+
+
+def current_user(
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    dev_user: str | None = Depends(dev_user_scheme),
+    conn=Depends(get_conn),
+) -> dict:
+    """FastAPI dependency: the authenticated users row as a dict."""
+    return upsert_user(conn, **authenticate(creds, dev_user))
