@@ -1,6 +1,7 @@
 import { getAccount, getInterests, getMe } from '../api.js';
 import { useAuth } from '../auth/index.js';
 import ErrorBox from '../components/ErrorBox.jsx';
+import { useT } from '../strings.js';
 import useApi from '../useApi.js';
 import DeleteAccount from './account/DeleteAccount.jsx';
 import SecurityCard from './account/SecurityCard.jsx';
@@ -8,6 +9,7 @@ import ProfilePanel from './events/ProfilePanel.jsx';
 import StudentVerification from './student/StudentVerification.jsx';
 
 export default function Me() {
+  const t = useT();
   const { user: authUser } = useAuth();
   const { data: me, error, loading, reload } = useApi(getMe);
   const interests = useApi(getInterests);
@@ -17,30 +19,35 @@ export default function Me() {
     <>
       <section className="card">
         <h1>
-          Your account {me?.is_student && <span className="badge badge-ok">Verified student</span>}
+          {t('me.title')}{' '}
+          {me?.is_student && <span className="badge badge-ok">{t('me.verifiedStudent')}</span>}
         </h1>
-        {loading && <p className="muted">Loading…</p>}
+        {loading && <p className="muted">{t('loading')}</p>}
         <ErrorBox error={error} onRetry={reload} />
         {me && (
           <dl className="kv">
-            <dt>Name</dt>
+            <dt>{t('me.name')}</dt>
             <dd>{me.display_name || '—'}</dd>
-            <dt>Email</dt>
-            <dd>{me.email || <span className="muted">not shared by Auth0 yet</span>}</dd>
-            <dt>Student</dt>
-            <dd>{me.is_student ? 'yes' : 'no'}</dd>
-            <dt>Roles</dt>
-            <dd>{me.roles?.length ? me.roles.join(', ') : 'none'}</dd>
-            <dt>Auth0 id</dt>
+            <dt>{t('me.email')}</dt>
+            <dd>{me.email || <span className="muted">{t('me.emailMissing')}</span>}</dd>
+            <dt>{t('me.student')}</dt>
+            <dd>{me.is_student ? t('me.yes') : t('me.no')}</dd>
+            <dt>{t('me.roles')}</dt>
+            <dd>
+              {me.roles?.length
+                ? me.roles.map((role) => t.opt(`role.${role}`) ?? role).join(', ')
+                : t('me.noRoles')}
+            </dd>
+            <dt>{t('me.auth0Id')}</dt>
             <dd>
               <code>{me.auth0_sub}</code>
             </dd>
-            <dt>User id</dt>
+            <dt>{t('me.userId')}</dt>
             <dd>
               <code>{me.id}</code>
             </dd>
-            <dt>Joined</dt>
-            <dd>{me.created_at ? new Date(me.created_at).toLocaleString() : '—'}</dd>
+            <dt>{t('me.joined')}</dt>
+            <dd>{me.created_at ? t.fmt.dateTime(me.created_at) : '—'}</dd>
           </dl>
         )}
       </section>

@@ -128,6 +128,44 @@ code {
   align-items: center;
   gap: 0.5rem;
 }
+/* EN / RO switch (i18n.jsx), next to the log in button; as tall as .btn-sm. */
+.lang-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.lang-switch-btn {
+  min-height: 32px;
+  min-width: 2.5rem;
+  padding: 0.2rem 0.55rem;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.lang-switch-btn:first-child {
+  border-left: 0;
+}
+.lang-switch-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.lang-switch-btn[aria-pressed='true'] {
+  background: var(--primary);
+  color: #fff;
+}
+.lang-switch-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -4px;
+  box-shadow: inset 0 0 0 4px #fff;
+}
 .nav-user {
   max-width: 12rem;
   overflow: hidden;
@@ -514,18 +552,6 @@ code {
 }
 .lease-fieldset:disabled {
   opacity: 0.6;
-}
-/* EN / RO switch (i18n.jsx), on the right; on the history pages it shares the row with the back link. */
-.lease-lang-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem 1rem;
-  margin-bottom: 0.5rem;
-}
-.lease-lang-bar .lease-history-page-crumb {
-  margin: 0 auto 0 0;
 }
 /* A long chip (Romanian labels are longer) may wrap instead of overflowing on a phone. */
 .lease-chip-wrap {

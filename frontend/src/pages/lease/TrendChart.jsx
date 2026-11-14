@@ -7,7 +7,7 @@ import { getPriceTrend } from '../../api.js';
 import useApi from '../../useApi.js';
 import LeaseError from './LeaseError.jsx';
 import { formatters } from './format.js';
-import { rich } from './i18n.jsx';
+import { rich } from '../../i18n.jsx';
 import { useT } from './strings.js';
 
 const ROOM_OPTIONS = [1, 2, 3];

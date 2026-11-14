@@ -4,7 +4,7 @@ import { getAnalysis } from '../../api.js';
 import useApi from '../../useApi.js';
 import AnalysisResult from './AnalysisResult.jsx';
 import LeaseError from './LeaseError.jsx';
-import { LangScope, LangSwitch } from './i18n.jsx';
+import { LangScope } from '../../i18n.jsx';
 import { useT } from './strings.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -32,12 +32,9 @@ export default function LeaseHistoryDetail() {
 
   return (
     <LangScope>
-      <div className="lease-lang-bar">
-        <p className="small lease-history-page-crumb">
-          <Link to={backTo}>{t('detail.back')}</Link>
-        </p>
-        <LangSwitch />
-      </div>
+      <p className="small lease-history-page-crumb">
+        <Link to={backTo}>{t('detail.back')}</Link>
+      </p>
 
       {loading && (
         <section className="card">

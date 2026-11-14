@@ -1,17 +1,20 @@
+import { rich } from '../i18n.jsx';
+import { useT } from '../strings.js';
 import useAuth from './useAuth.js';
 import LoginButton from './LoginButton.jsx';
 import VerifyEmailNotice from './VerifyEmailNotice.jsx';
 
 /** Renders children only for a logged-in user with a verified email (or the dev user). */
 export default function ProtectedRoute({ children }) {
+  const t = useT();
   const { isLoading, isAuthenticated, canUse, mode } = useAuth();
 
-  if (isLoading) return <p className="muted">Checking your session…</p>;
+  if (isLoading) return <p className="muted">{t('auth.checking')}</p>;
   if (canUse) return children;
   if (isAuthenticated) {
     return (
       <section className="card">
-        <h2>Verify your email</h2>
+        <h2>{t('auth.verifyTitle')}</h2>
         <VerifyEmailNotice action="continue" />
       </section>
     );
@@ -19,15 +22,8 @@ export default function ProtectedRoute({ children }) {
 
   return (
     <section className="card center">
-      <h2>Log in to continue</h2>
-      {mode === 'none' ? (
-        <p className="muted">
-          Auth0 is not configured. Fill in <code>frontend/.env</code>, or set{' '}
-          <code>VITE_DEV_USER</code> to use the dev bypass.
-        </p>
-      ) : (
-        <LoginButton />
-      )}
+      <h2>{t('auth.loginTitle')}</h2>
+      {mode === 'none' ? <p className="muted">{rich(t('auth.notConfigured'))}</p> : <LoginButton />}
     </section>
   );
 }
