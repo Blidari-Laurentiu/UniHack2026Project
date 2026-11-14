@@ -101,6 +101,57 @@ npm run dev                        # http://localhost:5173
 
 `npm run build` makes a production build in `frontend/dist/`.
 
+## Deployment
+
+The backend runs on Render (free Docker web service) and the frontend on Vercel. Both deploy from `main` on every merge. Secrets live only in each host's dashboard.
+
+### Backend on Render
+
+| Setting | Value |
+| --- | --- |
+| Language | Docker |
+| Branch | `main` |
+| Region | Frankfurt |
+| Root Directory | empty (the build context must be the repo root) |
+| Dockerfile Path | `./backend/Dockerfile` |
+| Docker Build Context Directory | `.` |
+| Health Check Path | `/health` |
+
+Environment variables: the same names as `backend/.env`, with these differences:
+
+| Variable | Value on the host |
+| --- | --- |
+| `APP_ENV` | `production` (turns the `X-Dev-User` bypass off) |
+| `DEMO_CACHE` | `1` (the demo lease answers without calling Gemini) |
+| `CORS_ORIGINS` | the exact frontend origin, e.g. `https://your-project.vercel.app`, with no trailing slash |
+
+Do not set `PORT`. Render provides it and the Dockerfile reads it.
+
+The free instance sleeps after 15 minutes without traffic and takes about a minute to wake. Open `/health` a few minutes before a demo and keep the tab open.
+
+### Frontend on Vercel
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `frontend` |
+| Framework preset | Vite (build `npm run build`, output `dist`) |
+
+Environment variables (Production): `VITE_API_URL` (the Render URL, no trailing slash), `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID` and `VITE_AUTH0_AUDIENCE`. Never set `VITE_DEV_USER` on the host.
+
+`frontend/vercel.json` sends every path to `index.html`, so a reload on a deep link such as `/lease/history/<id>` works. Use the production domain only: preview URLs are not in `CORS_ORIGINS` or in Auth0.
+
+### Auth0
+
+In the Single Page Application's settings, add the frontend origin to **Allowed Callback URLs**, **Allowed Logout URLs** and **Allowed Web Origins**. Keep `http://localhost:5173` in each list.
+
+### Check after a deploy
+
+- `/health` and `/health/db` on the backend return 200.
+- Log in on the frontend, then open `/me`.
+- Run the lease demo in [docs/PITCH_A.md](docs/PITCH_A.md).
+- Join an event and run a match.
+- Reload the page on `/lease/history/<id>`.
+
 ## Git workflow
 
 One branch per task, one pull request per branch, squash merge to `main`. `main` must always run.
