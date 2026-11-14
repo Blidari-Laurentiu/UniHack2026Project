@@ -1,6 +1,6 @@
 # Timișoara Newcomer Hub: status (UniHack 8)
 
-Updated Saturday 2026-11-14, 20:40 · @Blidari Laurentiu
+Updated Saturday 2026-11-14, 21:30 · @Blidari Laurentiu
 
 ## 1. Status
 
@@ -44,6 +44,7 @@ Both features work end to end on `main` and are deployed. The backend is on Rend
 - #23 roles with admin MFA, verified email required, student status by university code
 - #24 student codes sent through Brevo
 - #27 whole site in English and Romanian, with the switch in the top bar
+- #28 this file turned into a status document
 
 **Build checklist from Friday**
 
@@ -107,7 +108,7 @@ Not started: Gemini icebreakers per group.
 
 | Time | Laurentiu | Petru |
 | --- | --- | --- |
-| Saturday 20:40 to 24:00 | Refresh the local notes. This PR (`a/plan-refresh`). CLAUDE.md and README fixes, if we agree on them. | Check the Events and Me pages at 375 px: error, loading and empty states. |
+| Saturday 21:30 to 24:00 | Refresh the local notes. PLAN.md is done (#28). CLAUDE.md and README were checked against the code at 21:30 and match it. | Check the Events and Me pages at 375 px: error, loading and empty states. |
 | **24:00 (12 AM) between Saturday and Sunday** | **Feature freeze.** Bug fixes only after this. | same |
 | 00:00 to 00:30 | Walkthrough run 1 on the deployed URLs, together. Fix only what breaks the walkthrough. | same |
 | Sunday 09:00 | Reseed: `python db/reset_db.py --yes`, then `python db/seed.py`. Tell Petru first. Log in again and run the lease demo once. | Log in again after the reseed. |
