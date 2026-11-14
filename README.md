@@ -2,7 +2,7 @@
 
 UniHack 8 project (team of 2, 48 hours). A web app for people who have just moved to Timișoara:
 
-- **Lease check (Feature A).** Paste a Romanian lease. Gemini returns a clause checklist (risky clauses, missing clauses, overall risk), and a price verdict compares the rent with neighbourhood listings. The price verdict still works when Gemini fails. CNP, IBAN and ID series are removed from the text before it goes to Gemini or the database.
+- **Lease check (Feature A).** Paste a Romanian lease, or upload it as a PDF (our server reads the PDF's text into the form; scans are not supported). Gemini returns a clause checklist (risky clauses, missing clauses, overall risk), and a price verdict compares the rent with neighbourhood listings. The price verdict still works when Gemini fails. CNP, IBAN and ID series are removed from the text before it goes to Gemini or the database.
 - **Event groups (Feature B).** Set your interests and availability, join an event, and get matched into a group of 3 to 5 people with a "why you match" line.
 
 Stack: FastAPI + psycopg 3 on Tiger Cloud (Postgres + TimescaleDB), Google Gemini, Auth0, React + Vite.

@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { extractLeaseText } from '../../api.js';
 import { LIMITS } from './format.js';
+
+const PDF_IDLE = { busy: false, error: '', note: '' };
 
 export const EMPTY_FORM = {
   lease_text: '',
@@ -77,16 +80,80 @@ export default function LeaseForm({
   const tooLong = len > LIMITS.textMax;
   const tooShort = values.lease_text.trim().length < LIMITS.textMin;
 
+  // PDF upload: the server returns the PDF's text, which fills the text box for the user to read.
+  const fileRef = useRef(null);
+  const [pdf, setPdf] = useState(PDF_IDLE);
+  const latest = useRef(values);
+  latest.current = values; // the form may change while the PDF is being read
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // so choosing the same file again still fires a change
+    if (!file || pdf.busy) return;
+    if (file.size > LIMITS.pdfMaxBytes) {
+      setPdf({ ...PDF_IDLE, error: 'The PDF is too big: at most 5 MB. Paste the lease text instead.' });
+      return;
+    }
+    setPdf({ ...PDF_IDLE, busy: true });
+    try {
+      const out = await extractLeaseText(file);
+      onChange({ ...latest.current, lease_text: out.text });
+      setPdf({
+        ...PDF_IDLE,
+        note:
+          `Text taken from ${file.name}: ${out.pages} ${out.pages === 1 ? 'page' : 'pages'}, ` +
+          `${out.characters.toLocaleString('en')} characters. Read it through and fix anything that looks wrong.`,
+      });
+    } catch (err) {
+      setPdf({
+        ...PDF_IDLE,
+        error: err.status === 401 ? 'Your session has expired. Log in again, then choose the PDF again.' : err.message,
+      });
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     setTouched(true);
-    if (disabled || Object.keys(errors).length) return;
+    if (disabled || pdf.busy || Object.keys(errors).length) return;
     onSubmit(toPayload(values));
   }
 
   return (
     <form className="form lease-form" onSubmit={handleSubmit} noValidate aria-busy={busy}>
       <fieldset className="lease-fieldset" disabled={disabled}>
+        <div className="lease-upload">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={handleFile}
+            hidden
+            tabIndex={-1}
+          />
+          <div className="lease-upload-row">
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => fileRef.current?.click()}
+              disabled={pdf.busy}
+            >
+              {pdf.busy ? 'Reading the PDF…' : 'Upload a PDF'}
+            </button>
+            <span className="small muted">
+              or paste the text below. The PDF must have selectable text (not a scan), up to 5 MB.
+            </span>
+          </div>
+          <span className="small lease-upload-note" role="status" aria-live="polite">
+            {pdf.note}
+          </span>
+          {pdf.error && (
+            <span className="lease-field-error" role="alert">
+              {pdf.error}
+            </span>
+          )}
+        </div>
+
         <label className="field">
           <span className="field-label">Lease text (Romanian or English)</span>
           <textarea
@@ -171,7 +238,7 @@ export default function LeaseForm({
       </fieldset>
 
       <div className="form-actions">
-        <button className="btn btn-primary" type="submit" disabled={disabled}>
+        <button className="btn btn-primary" type="submit" disabled={disabled || pdf.busy}>
           {busy ? 'Checking…' : 'Check my lease'}
         </button>
       </div>

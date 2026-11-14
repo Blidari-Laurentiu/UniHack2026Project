@@ -515,6 +515,19 @@ code {
 .lease-fieldset:disabled {
   opacity: 0.6;
 }
+.lease-upload {
+  display: grid;
+  gap: 0.35rem;
+}
+.lease-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+.lease-upload-note:empty {
+  display: none;
+}
 .lease-textarea {
   min-height: 12rem;
   resize: vertical;

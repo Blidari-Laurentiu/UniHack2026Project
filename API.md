@@ -22,6 +22,7 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 
 | Method | Path | Auth | Request | Response example | Owner |
 | --- | --- | --- | --- | --- | --- |
+| POST | `/lease/extract-text` | JWT | `multipart/form-data` with one field, `file`: a PDF, at most 5 MB and 40 pages | `{"text": "CONTRACT DE ÎNCHIRIERE ...", "pages": 2, "characters": 4178}` | A |
 | POST | `/lease/analyze` | JWT | `LeaseAnalyzeRequest` (below) | `LeaseAnalysis` (below) | A |
 | GET | `/lease/analyses` | JWT | – | `[{"id": "a111…", "created_at": "2026-11-13T18:30:00Z", "neighbourhood": "Circumvalațiunii", "rooms": 2, "rent_eur": 500.0, "overall_risk": "medium", "verdict": "above_market"}]` | A |
 | GET | `/lease/analyses/{id}` | JWT | – | `LeaseAnalysis`; 404 `{"detail": "analysis not found"}` | A |
@@ -82,6 +83,7 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 - **When Gemini fails**, `report` is `null` and `report_error` holds a message, but `price_verdict` is always present. The analysis is still saved and reads back the same from `GET /lease/analyses/{id}`; in the list, its `overall_risk` is `null`.
 - **When pricing fails**, `POST /lease/analyze` returns 503 `{"detail": "Price check is unavailable: ..."}` (no listings for that room count) or 503 `{"detail": "Price data is unavailable right now (database error). Please try again."}`, and nothing is saved.
 - **Hourly limit:** after 30 analyses in the last hour, `POST /lease/analyze` returns 429 `{"detail": "You have checked 30 leases in the last hour. Please try again later."}` before calling Gemini.
+- **PDF upload:** `POST /lease/extract-text` returns the text layer of a PDF, to fill the lease text box. Nothing is saved or sent to Gemini, and the text is not redacted yet: that still happens in `POST /lease/analyze`. Errors: 413 (over 5 MB), 415 (not a PDF) and 422 (password-protected, damaged, over 40 pages, over 50,000 characters, or no text, which usually means a scan; there is no OCR).
 - `GET /lease/analyses` is newest first and lists only the caller's analyses; another user's id gives 404.
 - `GET /lease/analyses/{id}/details` shows how an analysis was made: the redacted text exactly as Gemini received it (never the original), Gemini's JSON (`null` when Gemini failed, with `report_error` saying why) and what the price verdict was computed from. Same ownership rule: another user's id gives 404.
 

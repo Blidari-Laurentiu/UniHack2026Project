@@ -68,6 +68,11 @@ def test_redacts_lowercase_iban(text):
         "IBAN RO00 XXXX 0000 0000 0000 0000, deschis",
         "IBAN RO49AAAA1B31007593840000.",
         "cont RO49 AAAA 1B31 0075 9384 0000",
+        # Text from a PDF: the line wraps inside the IBAN, or the groups use no-break spaces.
+        "IBAN RO00 XXXX 0000 0000 0000\n0000, deschis",
+        "IBAN RO00\nXXXX 0000 0000 0000 0000, deschis",
+        "cont RO49 AAAA 1B31 \r\n0075 9384 0000",
+        "cont RO49 AAAA 1B31 0075 9384 0000",
     ],
 )
 def test_redacts_iban(text):

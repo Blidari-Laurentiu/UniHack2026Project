@@ -6,6 +6,7 @@ export const LIMITS = {
   roomsMin: 1,
   roomsMax: 3,
   rentMax: 20000,
+  pdfMaxBytes: 5 * 1024 * 1024, // same as MAX_BYTES in backend/services/pdf_text.py
 };
 
 export const VERDICTS = {
