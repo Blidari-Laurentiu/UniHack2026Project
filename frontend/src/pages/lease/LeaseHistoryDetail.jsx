@@ -1,9 +1,11 @@
 // Person A: one saved lease check at its own URL (/lease/history/:id), so it can be linked and reloaded.
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { getAnalysis } from '../../api.js';
-import ErrorBox from '../../components/ErrorBox.jsx';
 import useApi from '../../useApi.js';
 import AnalysisResult from './AnalysisResult.jsx';
+import LeaseError from './LeaseError.jsx';
+import { LangScope, LangSwitch } from './i18n.jsx';
+import { useT } from './strings.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -14,6 +16,7 @@ function notFoundError() {
 }
 
 export default function LeaseHistoryDetail() {
+  const t = useT();
   const { id } = useParams();
   const location = useLocation();
   // Keep the list filters when going back (they come from the list link's state).
@@ -28,32 +31,32 @@ export default function LeaseHistoryDetail() {
   const notFound = error?.status === 404 || error?.status === 422;
 
   return (
-    <>
-      <p className="small lease-history-page-crumb">
-        <Link to={backTo}>← Back to all checks</Link>
-      </p>
+    <LangScope>
+      <div className="lease-lang-bar">
+        <p className="small lease-history-page-crumb">
+          <Link to={backTo}>{t('detail.back')}</Link>
+        </p>
+        <LangSwitch />
+      </div>
 
       {loading && (
         <section className="card">
           <p className="muted" role="status">
-            Loading this check…
+            {t('detail.loading')}
           </p>
         </section>
       )}
 
       {!loading && notFound && (
         <section className="card lease-history-page-notfound" aria-labelledby="lease-history-page-nf">
-          <h1 id="lease-history-page-nf">Check not found</h1>
-          <p className="muted">
-            This lease check does not exist, or it belongs to another account. Check the link, or
-            pick one from your list.
-          </p>
+          <h1 id="lease-history-page-nf">{t('detail.notFound')}</h1>
+          <p className="muted">{t('detail.notFoundHint')}</p>
           <div className="form-actions">
             <Link to="/lease/history" className="btn btn-primary">
-              See all checks
+              {t('detail.seeAll')}
             </Link>
             <Link to="/lease" className="btn">
-              Check a lease
+              {t('history.checkOne')}
             </Link>
           </div>
         </section>
@@ -61,19 +64,19 @@ export default function LeaseHistoryDetail() {
 
       {!loading && error && !notFound && (
         <section className="card">
-          <h1>Lease check</h1>
-          <ErrorBox error={error} onRetry={reload} />
+          <h1>{t('page.title')}</h1>
+          <LeaseError error={error} onRetry={reload} />
         </section>
       )}
 
       {!loading && data && (
         <section className="card" aria-labelledby="lease-history-page-detail-title">
           <h1 id="lease-history-page-detail-title" className="lease-history-page-detail-title">
-            Lease check: {data.neighbourhood}
+            {t('detail.title', data.neighbourhood)}
           </h1>
           <AnalysisResult analysis={data} />
         </section>
       )}
-    </>
+    </LangScope>
   );
 }

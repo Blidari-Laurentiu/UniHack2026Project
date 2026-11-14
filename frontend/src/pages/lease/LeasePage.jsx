@@ -3,13 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { analyzeLease, getAnalysis, getNeighbourhoods, listAnalyses } from '../../api.js';
 import { LoginButton, VerifyEmailNotice, useAuth } from '../../auth/index.js';
-import ErrorBox from '../../components/ErrorBox.jsx';
 import useApi from '../../useApi.js';
 import AnalysisHistory from './AnalysisHistory.jsx';
 import AnalysisResult from './AnalysisResult.jsx';
+import LeaseError from './LeaseError.jsx';
 import LeaseForm, { EMPTY_FORM } from './LeaseForm.jsx';
 import MedianChart from './MedianChart.jsx';
 import TrendChart from './TrendChart.jsx';
+import { LangScope, LangSwitch } from './i18n.jsx';
+import { useT } from './strings.js';
 
 function useElapsedSeconds(running) {
   const [seconds, setSeconds] = useState(0);
@@ -24,6 +26,7 @@ function useElapsedSeconds(running) {
 }
 
 export default function LeasePage() {
+  const t = useT();
   const { isAuthenticated, canUse, isLoading: authLoading } = useAuth();
 
   const hoods = useApi(getNeighbourhoods);
@@ -34,7 +37,18 @@ export default function LeasePage() {
     [canUse],
   );
 
-  const [values, setValues] = useState(EMPTY_FORM);
+  // The report language starts as the interface language and follows the EN / RO switch,
+  // until the user picks one in the form; after that their choice stays.
+  const [values, setValues] = useState(() => ({ ...EMPTY_FORM, ui_language: t.lang }));
+  const reportLanguageChosen = useRef(false);
+  const changeValues = (next) => {
+    if (next.ui_language !== values.ui_language) reportLanguageChosen.current = true;
+    setValues(next);
+  };
+  useEffect(() => {
+    if (!reportLanguageChosen.current) setValues((v) => ({ ...v, ui_language: t.lang }));
+  }, [t.lang]);
+
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const [error, setError] = useState(null);
@@ -82,31 +96,32 @@ export default function LeasePage() {
   const locked = !canUse;
 
   return (
-    <>
+    <LangScope>
       <section className="hero">
-        <h1>Lease check</h1>
-        <p className="lead">
-          Paste your rental contract. We flag risky clauses, list what is missing and compare the
-          rent with similar flats in the neighbourhood.
-        </p>
+        <div className="lease-lang-bar">
+          <LangSwitch />
+        </div>
+        <h1>{t('page.title')}</h1>
+        <p className="lead">{t('page.lead')}</p>
       </section>
 
       <section className="card">
-        <h2>Your lease</h2>
+        <h2>{t('page.yourLease')}</h2>
+        {/* The verify-email notice belongs to the shared auth code and stays in English. */}
         {!authLoading && isAuthenticated && !canUse && (
           <VerifyEmailNotice action="check a lease and keep your past checks" />
         )}
         {!authLoading && !isAuthenticated && (
           <div className="lease-login">
-            <span>Log in to check a lease and keep your past checks.</span>
+            <span>{t('page.loginPrompt')}</span>
             <LoginButton className="btn btn-primary btn-sm" />
           </div>
         )}
 
-        <ErrorBox error={hoods.error} onRetry={hoods.reload} />
+        <LeaseError error={hoods.error} onRetry={hoods.reload} />
         <LeaseForm
           values={values}
-          onChange={setValues}
+          onChange={changeValues}
           onSubmit={submit}
           neighbourhoods={neighbourhoods}
           neighbourhoodsLoading={hoods.loading}
@@ -118,30 +133,29 @@ export default function LeasePage() {
           <div className="lease-loading" role="status" aria-live="polite">
             <span className="lease-spinner" aria-hidden="true" />
             <span>
-              Reading your lease… this can take up to 30 seconds.{' '}
-              <span className="muted">{elapsed}s</span>
+              {t('page.loading')} <span className="muted">{elapsed}s</span>
             </span>
           </div>
         )}
 
-        <ErrorBox error={error} />
+        <LeaseError error={error} />
         {error?.status === 401 && (
           <p className="small">
-            Your session has expired. <LoginButton className="btn btn-sm" />
+            {t('page.sessionExpired')} <LoginButton className="btn btn-sm" />
           </p>
         )}
       </section>
 
       {result && (
         <section className="card lease-result-card" ref={resultRef} aria-live="polite">
-          <h2>Result</h2>
+          <h2>{t('page.result')}</h2>
           <AnalysisResult analysis={result} />
         </section>
       )}
 
       {result && (
         <section className="card" aria-labelledby="lease-trend-title">
-          <h2 id="lease-trend-title">Price trend</h2>
+          <h2 id="lease-trend-title">{t('page.trend')}</h2>
           <TrendChart
             key={result.id}
             neighbourhoods={neighbourhoods}
@@ -152,7 +166,7 @@ export default function LeasePage() {
       )}
 
       <section className="card" aria-labelledby="lease-chart-title">
-        <h2 id="lease-chart-title">Rent by neighbourhood</h2>
+        <h2 id="lease-chart-title">{t('page.byHood')}</h2>
         <MedianChart
           data={hoods.data}
           loading={hoods.loading}
@@ -167,9 +181,9 @@ export default function LeasePage() {
       {canUse && (
         <section className="card">
           <div className="lease-history-page-cardhead">
-            <h2>Your past checks</h2>
+            <h2>{t('page.pastChecks')}</h2>
             <Link to="/lease/history" className="small">
-              See all checks →
+              {t('page.seeAll')}
             </Link>
           </div>
           <AnalysisHistory
@@ -184,6 +198,6 @@ export default function LeasePage() {
           />
         </section>
       )}
-    </>
+    </LangScope>
   );
 }

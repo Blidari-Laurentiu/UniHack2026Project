@@ -3,25 +3,28 @@
 // price verdict and the trend chart. Details are loaded the first time the panel opens.
 import { useEffect, useId, useRef, useState } from 'react';
 import { getAnalysisDetails } from '../../api.js';
-import ErrorBox from '../../components/ErrorBox.jsx';
-import { VERDICTS, formatPct, roomsLabel } from './format.js';
+import LeaseError from './LeaseError.jsx';
+import { formatters } from './format.js';
 import { AGGREGATE_SQL, MEDIAN_SQL, TREND_SQL } from './howSql.js';
+import { rich } from './i18n.jsx';
+import { useT } from './strings.js';
 
 const REDACTED = '[REDACTED]';
+const MARKS = { mark: 'lease-how-redacted' };
 
 const TABS = [
-  { id: 'sent', label: 'Sent to Gemini' },
-  { id: 'answer', label: "Gemini's raw answer" },
-  { id: 'sql', label: 'The SQL' },
+  { id: 'sent', label: 'how.tabSent' },
+  { id: 'answer', label: 'how.tabAnswer' },
+  { id: 'sql', label: 'how.tabSql' },
 ];
-
-const eur2 = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
 
 /** SQL string literal, for showing a parameter value next to the query. */
 const sqlString = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
-function CopyButton({ text, what }) {
-  const [status, setStatus] = useState('');
+/** label: 'how.copyJson' or 'how.copyQuery' */
+function CopyButton({ text, label }) {
+  const t = useT();
+  const [status, setStatus] = useState(''); // '', 'how.copied' or 'how.copyFailed'
   useEffect(() => {
     if (!status) return undefined;
     const timer = setTimeout(() => setStatus(''), 2500);
@@ -31,19 +34,19 @@ function CopyButton({ text, what }) {
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
-      setStatus('Copied');
+      setStatus('how.copied');
     } catch {
-      setStatus('Could not copy. Select the text instead.');
+      setStatus('how.copyFailed');
     }
   }
 
   return (
     <span className="lease-how-copy">
       <button type="button" className="btn btn-sm" onClick={copy}>
-        Copy {what}
+        {t(label)}
       </button>
       <span className="small muted" role="status" aria-live="polite">
-        {status}
+        {status && t(status)}
       </span>
     </span>
   );
@@ -97,43 +100,34 @@ function highlightJson(json) {
 }
 
 function SentPanel({ details }) {
+  const t = useT();
   const n = details.redaction_count;
   return (
     <>
       <p>
-        Gemini received only this text, with our checklist prompt and the <code>LeaseReport</code>{' '}
-        JSON schema.{' '}
-        {n > 0 ? (
-          <>
-            Our server replaced <strong>{n}</strong> personal {n === 1 ? 'ID' : 'IDs'} (CNP, IBAN,
-            ID card or passport numbers) with <mark className="lease-how-redacted">{REDACTED}</mark>{' '}
-            before the request.
-          </>
-        ) : (
-          'No CNP, IBAN, ID card or passport number was found in this lease.'
-        )}{' '}
-        Only this redacted copy is saved.
+        {rich(t('how.sentIntro'))} {n > 0 ? rich(t('how.sentRedacted', n), MARKS) : t('how.sentNone')}{' '}
+        {t('how.sentSaved')}
       </p>
       {details.lease_text_redacted ? (
-        <CodeBlock label="Lease text sent to Gemini" className="lease-how-text">
+        <CodeBlock label={t('how.sentAria')} className="lease-how-text">
           {withRedactionsMarked(details.lease_text_redacted)}
         </CodeBlock>
       ) : (
-        <p className="muted">No lease text was saved with this check.</p>
+        <p className="muted">{t('how.sentNoText')}</p>
       )}
     </>
   );
 }
 
 function AnswerPanel({ details }) {
+  const t = useT();
   if (!details.gemini_json) {
     return (
       <div className="lease-warning" role="status">
-        <strong>Gemini did not return a report for this check.</strong>
-        <p>{details.report_error || 'No report was saved.'}</p>
-        <p className="small">
-          The price verdict did not need it: it comes straight from the database (see “The SQL”).
-        </p>
+        <strong>{t('how.answerMissing')}</strong>
+        {/* The reason comes from the server, in English. */}
+        <p>{details.report_error || t('how.answerMissingFallback')}</p>
+        <p className="small">{t('how.answerMissingHint')}</p>
       </div>
     );
   }
@@ -141,74 +135,63 @@ function AnswerPanel({ details }) {
   return (
     <>
       <div className="lease-how-bar">
-        <p>
-          Gemini answered in JSON (<code>response_mime_type: application/json</code> with the{' '}
-          <code>LeaseReport</code> schema). We validate it with Pydantic, retry once if it is invalid,
-          and render the report above from exactly this.
-        </p>
-        <CopyButton text={json} what="JSON" />
+        <p>{rich(t('how.answerIntro'))}</p>
+        <CopyButton text={json} label="how.copyJson" />
       </div>
-      <CodeBlock label="Gemini's JSON answer">{highlightJson(json)}</CodeBlock>
+      <CodeBlock label={t('how.answerAria')}>{highlightJson(json)}</CodeBlock>
     </>
   );
 }
 
 function SqlPanel({ details }) {
+  const t = useT();
+  const f = formatters(t.lang);
   const p = details.price_inputs;
-  const verdict = VERDICTS[p.verdict]?.label || p.verdict;
+  const verdict = t.opt(`verdict.${p.verdict}`) ?? p.verdict;
   const city = p.scope === 'city';
+  const months = parseInt(p.window, 10) || 12; // the API sends "12 months"
+  const parameters = (
+    <p className="small muted">
+      {t('how.parameters')}
+      <code>neighbourhood = {sqlString(p.neighbourhood)}</code>, <code>rooms = {p.rooms}</code>
+    </p>
+  );
   return (
     <>
-      <h4 className="lease-how-subhead">1. Price verdict: one query on the listings hypertable</h4>
-      <p>
-        The neighbourhood and the city-wide median for the same room count, over the last{' '}
-        {p.window}, in one round trip. Fair is within ±10% of the median; more than 30% below is
-        flagged as a possible scam. Under {p.min_sample} listings in the neighbourhood, the
-        city-wide median is used.
-      </p>
+      <h4 className="lease-how-subhead">{t('how.sqlVerdictTitle')}</h4>
+      <p>{t('how.sqlVerdict', months, p.min_sample)}</p>
       <div className="lease-how-bar">
-        <p className="small muted">
-          Parameters: <code>neighbourhood = {sqlString(p.neighbourhood)}</code>,{' '}
-          <code>rooms = {p.rooms}</code>
-        </p>
-        <CopyButton text={MEDIAN_SQL} what="query" />
+        {parameters}
+        <CopyButton text={MEDIAN_SQL} label="how.copyQuery" />
       </div>
-      <CodeBlock label="Median query">{MEDIAN_SQL}</CodeBlock>
+      <CodeBlock label={t('how.medianAria')}>{MEDIAN_SQL}</CodeBlock>
 
       <dl className="kv lease-how-kv">
-        <dt>Compared with</dt>
+        <dt>{t('how.comparedWith')}</dt>
         <dd>
-          {p.sample_size} {p.sample_size === 1 ? 'listing' : 'listings'} with {roomsLabel(p.rooms)}
-          {city ? ' across Timișoara (too few in the neighbourhood)' : ` in ${p.neighbourhood}`}
+          {t('how.comparedValue', t('listings', p.sample_size), t('rooms', p.rooms), city ? '' : p.neighbourhood)}
         </dd>
-        <dt>Median</dt>
-        <dd>{eur2.format(p.median_eur)}</dd>
-        <dt>Your rent</dt>
+        <dt>{t('how.median')}</dt>
+        <dd>{f.eurExact(p.median_eur)}</dd>
+        <dt>{t('how.yourRent')}</dt>
         <dd>
-          {eur2.format(p.rent_eur)} ({formatPct(p.diff_pct)})
+          {f.eurExact(p.rent_eur)} ({f.pct(p.diff_pct)})
         </dd>
-        <dt>Verdict</dt>
+        <dt>{t('how.verdict')}</dt>
         <dd>{verdict}</dd>
       </dl>
 
-      <h4 className="lease-how-subhead">2. Price trend: a TimescaleDB continuous aggregate</h4>
-      <p>
-        The trend chart reads monthly medians from <code>listings_monthly</code>, which TimescaleDB
-        keeps up to date: a policy re-materializes it every hour, and the current month is computed
-        live from new listings (real-time aggregation).
-      </p>
+      <h4 className="lease-how-subhead">{t('how.sqlTrendTitle')}</h4>
+      <p>{rich(t('how.sqlTrend'))}</p>
       <div className="lease-how-bar">
-        <p className="small muted">
-          Parameters: <code>neighbourhood = {sqlString(p.neighbourhood)}</code>,{' '}
-          <code>rooms = {p.rooms}</code>
-        </p>
-        <CopyButton text={TREND_SQL} what="query" />
+        {parameters}
+        <CopyButton text={TREND_SQL} label="how.copyQuery" />
       </div>
-      <CodeBlock label="Trend query">{TREND_SQL}</CodeBlock>
+      <CodeBlock label={t('how.trendAria')}>{TREND_SQL}</CodeBlock>
 
       <details className="lease-how-more">
-        <summary>How listings_monthly is defined</summary>
-        <CodeBlock label="Continuous aggregate definition">{AGGREGATE_SQL}</CodeBlock>
+        <summary>{t('how.aggregateSummary')}</summary>
+        <CodeBlock label={t('how.aggregateAria')}>{AGGREGATE_SQL}</CodeBlock>
       </details>
     </>
   );
@@ -217,12 +200,13 @@ function SqlPanel({ details }) {
 const PANELS = { sent: SentPanel, answer: AnswerPanel, sql: SqlPanel };
 
 function Tabs({ details }) {
+  const t = useT();
   const base = useId();
   const [active, setActive] = useState('sent');
   const tabRefs = useRef({});
 
   function onKeyDown(e) {
-    const i = TABS.findIndex((t) => t.id === active);
+    const i = TABS.findIndex((tab) => tab.id === active);
     const next = {
       ArrowRight: (i + 1) % TABS.length,
       ArrowLeft: (i - 1 + TABS.length) % TABS.length,
@@ -238,23 +222,23 @@ function Tabs({ details }) {
   const Panel = PANELS[active];
   return (
     <>
-      <div className="lease-how-tabs" role="tablist" aria-label="How this was checked" onKeyDown={onKeyDown}>
-        {TABS.map((t) => (
+      <div className="lease-how-tabs" role="tablist" aria-label={t('how.title')} onKeyDown={onKeyDown}>
+        {TABS.map((tab) => (
           <button
-            key={t.id}
+            key={tab.id}
             ref={(el) => {
-              tabRefs.current[t.id] = el;
+              tabRefs.current[tab.id] = el;
             }}
             type="button"
             role="tab"
-            id={`${base}-tab-${t.id}`}
-            aria-selected={active === t.id}
+            id={`${base}-tab-${tab.id}`}
+            aria-selected={active === tab.id}
             aria-controls={`${base}-panel`}
-            tabIndex={active === t.id ? 0 : -1}
+            tabIndex={active === tab.id ? 0 : -1}
             className="lease-how-tab"
-            onClick={() => setActive(t.id)}
+            onClick={() => setActive(tab.id)}
           >
-            {t.label}
+            {t(tab.label)}
           </button>
         ))}
       </div>
@@ -271,6 +255,7 @@ function Tabs({ details }) {
 }
 
 export default function HowChecked({ analysisId }) {
+  const t = useT();
   const contentId = useId();
   const [open, setOpen] = useState(false);
   const [tick, setTick] = useState(0);
@@ -301,10 +286,8 @@ export default function HowChecked({ analysisId }) {
         >
           <span className="lease-how-chevron" aria-hidden="true" />
           <span>
-            How this was checked
-            <span className="lease-how-hint small muted">
-              What Gemini saw, what it answered, and the SQL behind the price
-            </span>
+            {t('how.title')}
+            <span className="lease-how-hint small muted">{t('how.hint')}</span>
           </span>
         </button>
       </h3>
@@ -312,10 +295,10 @@ export default function HowChecked({ analysisId }) {
       <div id={contentId} className="lease-how-body" hidden={!open}>
         {state.loading && (
           <p className="muted" role="status">
-            Loading the details…
+            {t('how.loading')}
           </p>
         )}
-        <ErrorBox error={state.error} onRetry={() => setTick((t) => t + 1)} />
+        <LeaseError error={state.error} onRetry={() => setTick((n) => n + 1)} />
         {state.data && <Tabs details={state.data} />}
       </div>
     </section>

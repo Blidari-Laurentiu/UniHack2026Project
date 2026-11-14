@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
 import { extractLeaseText } from '../../api.js';
 import { LIMITS } from './format.js';
-
-const PDF_IDLE = { busy: false, error: '', note: '' };
+import { errorMessage, useT } from './strings.js';
 
 export const EMPTY_FORM = {
   lease_text: '',
@@ -12,32 +11,37 @@ export const EMPTY_FORM = {
   ui_language: 'en',
 };
 
-/** Client-side checks with the same limits as LeaseAnalyzeRequest. Returns { field: message }. */
-export function validate(values, neighbourhoods) {
+const PDF_IDLE = { busy: false, error: '', note: '' };
+
+/**
+ * Client-side checks with the same limits as LeaseAnalyzeRequest.
+ * Returns { field: message }, with the messages from t (useT in strings.js).
+ */
+export function validate(values, neighbourhoods, t) {
   const errors = {};
   const text = values.lease_text;
   if (text.trim().length < LIMITS.textMin) {
-    errors.lease_text = `Paste the lease: at least ${LIMITS.textMin} characters.`;
+    errors.lease_text = t('error.textShort', LIMITS.textMin);
   } else if (text.length > LIMITS.textMax) {
-    errors.lease_text = `The lease is too long: at most ${LIMITS.textMax.toLocaleString('en')} characters.`;
+    errors.lease_text = t('error.textLong', LIMITS.textMax);
   }
   if (!values.neighbourhood) {
-    errors.neighbourhood = 'Choose a neighbourhood.';
+    errors.neighbourhood = t('error.hood');
   } else if (neighbourhoods.length && !neighbourhoods.includes(values.neighbourhood)) {
-    errors.neighbourhood = 'Choose a neighbourhood from the list.';
+    errors.neighbourhood = t('error.hoodUnknown');
   }
   const rooms = Number(values.rooms);
   if (!Number.isInteger(rooms) || rooms < LIMITS.roomsMin || rooms > LIMITS.roomsMax) {
-    errors.rooms = `Rooms must be ${LIMITS.roomsMin} to ${LIMITS.roomsMax}.`;
+    errors.rooms = t('error.rooms', LIMITS.roomsMin, LIMITS.roomsMax);
   }
   const rent = Number(values.rent_eur);
   if (values.rent_eur === '' || !Number.isFinite(rent) || rent <= 0) {
-    errors.rent_eur = 'Enter the monthly rent in EUR (more than 0).';
+    errors.rent_eur = t('error.rent');
   } else if (rent > LIMITS.rentMax) {
-    errors.rent_eur = `Rent must be at most ${LIMITS.rentMax.toLocaleString('en')} EUR.`;
+    errors.rent_eur = t('error.rentMax', LIMITS.rentMax);
   }
   if (!['en', 'ro'].includes(values.ui_language)) {
-    errors.ui_language = 'Choose English or Romanian.';
+    errors.ui_language = t('error.language');
   }
   return errors;
 }
@@ -70,8 +74,9 @@ export default function LeaseForm({
   locked,
   busy,
 }) {
+  const t = useT();
   const [touched, setTouched] = useState(false);
-  const errors = validate(values, neighbourhoods);
+  const errors = validate(values, neighbourhoods, t);
   const show = (field) => (touched ? errors[field] : undefined);
   const set = (field) => (e) => onChange({ ...values, [field]: e.target.value });
 
@@ -81,6 +86,7 @@ export default function LeaseForm({
   const tooShort = values.lease_text.trim().length < LIMITS.textMin;
 
   // PDF upload: the server returns the PDF's text, which fills the text box for the user to read.
+  // The outcome is kept as data (not as a finished sentence), so it follows a language switch.
   const fileRef = useRef(null);
   const [pdf, setPdf] = useState(PDF_IDLE);
   const latest = useRef(values);
@@ -91,26 +97,22 @@ export default function LeaseForm({
     e.target.value = ''; // so choosing the same file again still fires a change
     if (!file || pdf.busy) return;
     if (file.size > LIMITS.pdfMaxBytes) {
-      setPdf({ ...PDF_IDLE, error: 'The PDF is too big: at most 5 MB. Paste the lease text instead.' });
+      setPdf({ ...PDF_IDLE, error: { tooBig: true } });
       return;
     }
     setPdf({ ...PDF_IDLE, busy: true });
     try {
       const out = await extractLeaseText(file);
       onChange({ ...latest.current, lease_text: out.text });
-      setPdf({
-        ...PDF_IDLE,
-        note:
-          `Text taken from ${file.name}: ${out.pages} ${out.pages === 1 ? 'page' : 'pages'}, ` +
-          `${out.characters.toLocaleString('en')} characters. Read it through and fix anything that looks wrong.`,
-      });
+      setPdf({ ...PDF_IDLE, note: { name: file.name, pages: out.pages, characters: out.characters } });
     } catch (err) {
-      setPdf({
-        ...PDF_IDLE,
-        error: err.status === 401 ? 'Your session has expired. Log in again, then choose the PDF again.' : err.message,
-      });
+      setPdf({ ...PDF_IDLE, error: err });
     }
   }
+
+  const pdfNote = pdf.note ? t('form.uploadNote', pdf.note.name, pdf.note.pages, pdf.note.characters) : '';
+  let pdfError = '';
+  if (pdf.error) pdfError = pdf.error.tooBig ? t('form.pdfTooBig') : errorMessage(pdf.error, t, 'pdf');
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -138,29 +140,27 @@ export default function LeaseForm({
               onClick={() => fileRef.current?.click()}
               disabled={pdf.busy}
             >
-              {pdf.busy ? 'Reading the PDF…' : 'Upload a PDF'}
+              {pdf.busy ? t('form.uploading') : t('form.upload')}
             </button>
-            <span className="small muted">
-              or paste the text below. The PDF must have selectable text (not a scan), up to 5 MB.
-            </span>
+            <span className="small muted">{t('form.uploadHint')}</span>
           </div>
           <span className="small lease-upload-note" role="status" aria-live="polite">
-            {pdf.note}
+            {pdfNote}
           </span>
-          {pdf.error && (
+          {pdfError && (
             <span className="lease-field-error" role="alert">
-              {pdf.error}
+              {pdfError}
             </span>
           )}
         </div>
 
         <label className="field">
-          <span className="field-label">Lease text (Romanian or English)</span>
+          <span className="field-label">{t('form.text')}</span>
           <textarea
             className="input lease-textarea"
             value={values.lease_text}
             onChange={set('lease_text')}
-            placeholder="CONTRACT DE ÎNCHIRIERE…  Paste the whole lease here."
+            placeholder={t('form.textPlaceholder')}
             rows={10}
             aria-invalid={Boolean(show('lease_text'))}
             aria-describedby="lease-text-count lease-text-error"
@@ -169,22 +169,22 @@ export default function LeaseForm({
             id="lease-text-count"
             className={`small lease-counter${tooLong || (touched && tooShort) ? ' lease-counter-bad' : ''}`}
           >
-            {len.toLocaleString('en')} / {LIMITS.textMax.toLocaleString('en')} characters
-            {tooShort && ` (at least ${LIMITS.textMin})`}
+            {t('form.counter', len, LIMITS.textMax)}
+            {tooShort && t('form.counterMin', LIMITS.textMin)}
           </span>
           <FieldError id="lease-text-error" message={show('lease_text')} />
         </label>
 
         <div className="lease-grid">
           <label className="field">
-            <span className="field-label">Neighbourhood</span>
+            <span className="field-label">{t('neighbourhood')}</span>
             <select
               className="input"
               value={values.neighbourhood}
               onChange={set('neighbourhood')}
               aria-invalid={Boolean(show('neighbourhood'))}
             >
-              <option value="">{neighbourhoodsLoading ? 'Loading…' : 'Choose…'}</option>
+              <option value="">{neighbourhoodsLoading ? t('form.hoodLoading') : t('form.choose')}</option>
               {neighbourhoods.map((n) => (
                 <option key={n} value={n}>
                   {n}
@@ -195,14 +195,14 @@ export default function LeaseForm({
           </label>
 
           <label className="field">
-            <span className="field-label">Rooms (camere), living room included</span>
+            <span className="field-label">{t('form.rooms')}</span>
             <select
               className="input"
               value={values.rooms}
               onChange={set('rooms')}
               aria-invalid={Boolean(show('rooms'))}
             >
-              <option value="1">1 (studio)</option>
+              <option value="1">{t('form.studio')}</option>
               <option value="2">2</option>
               <option value="3">3</option>
             </select>
@@ -210,7 +210,7 @@ export default function LeaseForm({
           </label>
 
           <label className="field">
-            <span className="field-label">Monthly rent (EUR)</span>
+            <span className="field-label">{t('form.rent')}</span>
             <input
               className="input"
               type="number"
@@ -220,14 +220,14 @@ export default function LeaseForm({
               step="any"
               value={values.rent_eur}
               onChange={set('rent_eur')}
-              placeholder="e.g. 450"
+              placeholder={t('form.rentPlaceholder')}
               aria-invalid={Boolean(show('rent_eur'))}
             />
             <FieldError message={show('rent_eur')} />
           </label>
 
           <label className="field">
-            <span className="field-label">Report language</span>
+            <span className="field-label">{t('form.reportLanguage')}</span>
             <select className="input" value={values.ui_language} onChange={set('ui_language')}>
               <option value="en">English</option>
               <option value="ro">Română</option>
@@ -239,7 +239,7 @@ export default function LeaseForm({
 
       <div className="form-actions">
         <button className="btn btn-primary" type="submit" disabled={disabled || pdf.busy}>
-          {busy ? 'Checking…' : 'Check my lease'}
+          {busy ? t('form.submitting') : t('form.submit')}
         </button>
       </div>
     </form>
