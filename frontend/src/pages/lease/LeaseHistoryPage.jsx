@@ -1,14 +1,18 @@
 // Person A: all of the user's saved lease checks, newest first, with client-side filters.
 import { Link, useSearchParams } from 'react-router-dom';
 import { listAnalyses } from '../../api.js';
-import ErrorBox from '../../components/ErrorBox.jsx';
 import useApi from '../../useApi.js';
+import LeaseError from './LeaseError.jsx';
 import { ToneChip } from './LeaseReport.jsx';
-import { RISKS, VERDICTS, formatDate, formatEur, roomsLabel } from './format.js';
+import { VERDICT_TONES, formatters } from './format.js';
+import { LangScope, LangSwitch } from './i18n.jsx';
+import { useT } from './strings.js';
 
 const ALL = '';
 
 function HistoryRow({ a, search }) {
+  const t = useT();
+  const f = formatters(t.lang);
   return (
     <li>
       <Link
@@ -19,19 +23,19 @@ function HistoryRow({ a, search }) {
         <span className="lease-history-page-main">
           <strong>{a.neighbourhood}</strong>
           <span>
-            {roomsLabel(a.rooms)} · {formatEur(a.rent_eur)} a month
+            {t('rooms', a.rooms)} · {f.eur(a.rent_eur)} {t('perMonth')}
           </span>
           <span className="small muted">
-            <time dateTime={a.created_at}>{formatDate(a.created_at)}</time>
+            <time dateTime={a.created_at}>{f.date(a.created_at)}</time>
           </span>
         </span>
         <span className="lease-history-page-chips">
           {a.overall_risk ? (
-            <ToneChip map={RISKS} value={a.overall_risk} />
+            <ToneChip kind="risk" value={a.overall_risk} />
           ) : (
-            <span className="lease-chip lease-tone-none">No report</span>
+            <span className="lease-chip lease-tone-none">{t('noReport')}</span>
           )}
-          <ToneChip map={VERDICTS} value={a.verdict} />
+          <ToneChip kind="verdict" value={a.verdict} />
         </span>
       </Link>
     </li>
@@ -39,6 +43,7 @@ function HistoryRow({ a, search }) {
 }
 
 export default function LeaseHistoryPage() {
+  const t = useT();
   const { data, loading, error, reload } = useApi(listAnalyses);
   const items = data || [];
 
@@ -63,47 +68,50 @@ export default function LeaseHistoryPage() {
   const search = params.toString() ? `?${params}` : '';
 
   return (
-    <>
+    <LangScope>
       <section className="hero">
-        <p className="small lease-history-page-crumb">
-          <Link to="/lease">← Lease check</Link>
-        </p>
-        <h1>Your lease checks</h1>
-        <p className="lead">Every lease you have checked, newest first. Open one to see the full report.</p>
+        <div className="lease-lang-bar">
+          <p className="small lease-history-page-crumb">
+            <Link to="/lease">{t('history.back')}</Link>
+          </p>
+          <LangSwitch />
+        </div>
+        <h1>{t('history.title')}</h1>
+        <p className="lead">{t('history.lead')}</p>
       </section>
 
       <section className="card" aria-labelledby="lease-history-page-title">
         <h2 id="lease-history-page-title" className="lease-history-page-title">
-          All checks
+          {t('history.all')}
         </h2>
 
-        <ErrorBox error={error} onRetry={reload} />
+        <LeaseError error={error} onRetry={reload} />
 
         {loading && !data && (
           <p className="muted" role="status">
-            Loading your checks…
+            {t('history.loading')}
           </p>
         )}
 
         {!loading && !error && items.length === 0 && (
           <div className="lease-history-page-empty">
             <p>
-              <strong>No checks yet.</strong>
+              <strong>{t('history.empty')}</strong>
             </p>
-            <p className="muted">When you check a lease, it is saved here so you can come back to it.</p>
+            <p className="muted">{t('history.emptyHint')}</p>
             <Link to="/lease" className="btn btn-primary">
-              Check a lease
+              {t('history.checkOne')}
             </Link>
           </div>
         )}
 
         {items.length > 0 && (
           <>
-            <div className="lease-history-page-filters" role="group" aria-label="Filter checks">
+            <div className="lease-history-page-filters" role="group" aria-label={t('history.filters')}>
               <label className="field">
-                <span className="field-label">Neighbourhood</span>
+                <span className="field-label">{t('neighbourhood')}</span>
                 <select className="input" value={hood} onChange={(e) => setFilter('neighbourhood', e.target.value)}>
-                  <option value={ALL}>All neighbourhoods</option>
+                  <option value={ALL}>{t('history.allHoods')}</option>
                   {hoods.map((h) => (
                     <option key={h} value={h}>
                       {h}
@@ -113,30 +121,30 @@ export default function LeaseHistoryPage() {
                 </select>
               </label>
               <label className="field">
-                <span className="field-label">Price verdict</span>
+                <span className="field-label">{t('history.verdict')}</span>
                 <select className="input" value={verdict} onChange={(e) => setFilter('verdict', e.target.value)}>
-                  <option value={ALL}>All verdicts</option>
-                  {Object.entries(VERDICTS).map(([key, v]) => (
+                  <option value={ALL}>{t('history.allVerdicts')}</option>
+                  {Object.keys(VERDICT_TONES).map((key) => (
                     <option key={key} value={key}>
-                      {v.label}
+                      {t(`verdict.${key}`)}
                     </option>
                   ))}
-                  {verdict !== ALL && !(verdict in VERDICTS) && <option value={verdict}>{verdict}</option>}
+                  {verdict !== ALL && !(verdict in VERDICT_TONES) && <option value={verdict}>{verdict}</option>}
                 </select>
               </label>
             </div>
 
             <div className="lease-history-page-count">
               <p className="small muted" role="status" aria-live="polite">
-                {shown.length} of {items.length} {items.length === 1 ? 'check' : 'checks'}
+                {t('history.count', shown.length, items.length)}
               </p>
               <button type="button" className="btn btn-sm" onClick={reset} disabled={!filtered}>
-                Reset filters
+                {t('history.reset')}
               </button>
             </div>
 
             {shown.length === 0 ? (
-              <p className="muted lease-history-page-none">No checks match these filters.</p>
+              <p className="muted lease-history-page-none">{t('history.noMatch')}</p>
             ) : (
               <ul className="list lease-history-page-list">
                 {shown.map((a) => (
@@ -147,6 +155,6 @@ export default function LeaseHistoryPage() {
           </>
         )}
       </section>
-    </>
+    </LangScope>
   );
 }

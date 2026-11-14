@@ -1,16 +1,19 @@
 import HowChecked from './HowChecked.jsx';
 import LeaseReport from './LeaseReport.jsx';
 import PriceBadge from './PriceBadge.jsx';
-import { formatDate, formatEur, roomsLabel } from './format.js';
+import { formatters } from './format.js';
+import { useT } from './strings.js';
 
 export default function AnalysisResult({ analysis }) {
+  const t = useT();
+  const f = formatters(t.lang);
   const { report, report_error, price_verdict } = analysis;
 
   return (
     <div className="lease-result">
       <p className="small muted lease-result-meta">
-        {analysis.neighbourhood} · {roomsLabel(analysis.rooms)} · {formatEur(analysis.rent_eur)} a
-        month · checked {formatDate(analysis.created_at)}
+        {analysis.neighbourhood} · {t('rooms', analysis.rooms)} · {f.eur(analysis.rent_eur)} {t('perMonth')} ·{' '}
+        {t('result.checked', f.date(analysis.created_at))}
       </p>
 
       <div className="lease-result-grid">
@@ -24,16 +27,16 @@ export default function AnalysisResult({ analysis }) {
           <LeaseReport report={report} />
         ) : (
           <div className="lease-warning" role="status">
-            <strong>The clause check did not run this time.</strong>
-            <p>{report_error || 'The AI report is unavailable.'}</p>
-            <p className="small">The price check still works. Try the clause check again in a minute.</p>
+            <strong>{t('result.noReportTitle')}</strong>
+            {/* The reason comes from the server, in English. */}
+            <p>{report_error || t('result.noReportFallback')}</p>
+            <p className="small">{t('result.noReportHint')}</p>
           </div>
         )}
       </div>
 
       <p className="small lease-disclaimer">
-        <strong>Not legal advice.</strong> This is an automatic first check to help you ask the
-        right questions. For a binding opinion, ask a lawyer or a notary before you sign.
+        <strong>{t('result.disclaimerTitle')}</strong> {t('result.disclaimer')}
       </p>
 
       {/* key: a different analysis starts collapsed and loads its own details */}

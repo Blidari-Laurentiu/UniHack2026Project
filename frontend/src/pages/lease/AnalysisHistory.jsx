@@ -1,15 +1,16 @@
-import ErrorBox from '../../components/ErrorBox.jsx';
+import LeaseError from './LeaseError.jsx';
 import { ToneChip } from './LeaseReport.jsx';
-import { RISKS, VERDICTS, formatDate, formatEur, roomsLabel } from './format.js';
+import { formatters } from './format.js';
+import { useT } from './strings.js';
 
 export default function AnalysisHistory({ items, loading, error, onRetry, selectedId, openingId, onOpen, disabled }) {
+  const t = useT();
+  const f = formatters(t.lang);
   return (
     <>
-      <ErrorBox error={error} onRetry={onRetry} />
-      {loading && items.length === 0 && <p className="muted">Loading your checks…</p>}
-      {!loading && !error && items.length === 0 && (
-        <p className="muted">No checks yet. Your past lease checks will show up here.</p>
-      )}
+      <LeaseError error={error} onRetry={onRetry} />
+      {loading && items.length === 0 && <p className="muted">{t('history.loading')}</p>}
+      {!loading && !error && items.length === 0 && <p className="muted">{t('history.emptyShort')}</p>}
       <ul className="list lease-history">
         {items.map((a) => (
           <li key={a.id}>
@@ -22,19 +23,19 @@ export default function AnalysisHistory({ items, loading, error, onRetry, select
             >
               <span className="list-main">
                 <strong>
-                  {a.neighbourhood} · {roomsLabel(a.rooms)} · {formatEur(a.rent_eur)}
+                  {a.neighbourhood} · {t('rooms', a.rooms)} · {f.eur(a.rent_eur)}
                 </strong>
                 <span className="small muted">
-                  {openingId === a.id ? 'Opening…' : formatDate(a.created_at)}
+                  {openingId === a.id ? t('history.opening') : f.date(a.created_at)}
                 </span>
               </span>
               <span className="list-side">
                 {a.overall_risk ? (
-                  <ToneChip map={RISKS} value={a.overall_risk} />
+                  <ToneChip kind="risk" value={a.overall_risk} />
                 ) : (
-                  <span className="lease-chip lease-tone-none">No report</span>
+                  <span className="lease-chip lease-tone-none">{t('noReport')}</span>
                 )}
-                <ToneChip map={VERDICTS} value={a.verdict} />
+                <ToneChip kind="verdict" value={a.verdict} />
               </span>
             </button>
           </li>

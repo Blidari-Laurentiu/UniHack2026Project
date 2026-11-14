@@ -1,44 +1,55 @@
-import { RISKS, SEVERITIES, categoryLabel } from './format.js';
+import { LEVEL_TONES, VERDICT_TONES } from './format.js';
+import { useT } from './strings.js';
 
-export function ToneChip({ map, value, prefix = '' }) {
-  const item = map[value] || { label: value, tone: 'info' };
-  return (
-    <span className={`lease-chip lease-tone-${item.tone}`}>
-      {prefix}
-      {item.label}
-    </span>
-  );
+const TONES = { verdict: VERDICT_TONES, risk: LEVEL_TONES, severity: LEVEL_TONES };
+
+/** A coloured chip for a price verdict, an overall risk or a clause severity. */
+export function ToneChip({ kind, value, wrap }) {
+  const t = useT();
+  const label = t.opt(`${kind}.${value}`) ?? value;
+  return <span className={`lease-chip lease-tone-${TONES[kind]?.[value] || 'info'}`}>{wrap ? wrap(label) : label}</span>;
+}
+
+/** "rent_increase" -> "Rent increase", for a category Gemini made up that has no translation. */
+function plainCategory(c) {
+  const s = c.replace(/_/g, ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 export default function LeaseReport({ report }) {
+  const t = useT();
   const { summary, overall_risk, risky_clauses = [], missing_clauses = [] } = report;
 
+  // Gemini wrote summary, why, suggestion and name in the report language chosen for this check;
+  // they are shown as saved, whatever the interface language is now.
   return (
-    <section className="lease-report" aria-label="Lease report">
+    <section className="lease-report" aria-label={t('report.aria')}>
       <div className="lease-report-head">
-        <h3>Clause check</h3>
-        <ToneChip map={RISKS} value={overall_risk} prefix="Overall: " />
+        <h3>{t('report.title')}</h3>
+        <ToneChip kind="risk" value={overall_risk} wrap={(label) => t('report.overall', label)} />
       </div>
       <p>{summary}</p>
 
-      <h3>Risky clauses ({risky_clauses.length})</h3>
+      <h3>{t('report.risky', risky_clauses.length)}</h3>
       {risky_clauses.length === 0 ? (
-        <p className="muted">No risky clauses found.</p>
+        <p className="muted">{t('report.riskyNone')}</p>
       ) : (
         <ul className="lease-clauses">
           {risky_clauses.map((c, i) => (
-            <li key={i} className={`lease-clause lease-edge-${SEVERITIES[c.severity]?.tone || 'info'}`}>
+            <li key={i} className={`lease-clause lease-edge-${LEVEL_TONES[c.severity] || 'info'}`}>
               <div className="lease-clause-head">
-                <ToneChip map={SEVERITIES} value={c.severity} prefix="Severity: " />
-                {c.category && <span className="chip">{categoryLabel(c.category)}</span>}
+                <ToneChip kind="severity" value={c.severity} />
+                {c.category && (
+                  <span className="chip">{t.opt(`category.${c.category}`) ?? plainCategory(c.category)}</span>
+                )}
               </div>
               <blockquote className="lease-quote">{c.quote}</blockquote>
               <p>
-                <strong>Why it matters: </strong>
+                <strong>{t('report.why')}</strong>
                 {c.why}
               </p>
               <p className="lease-suggestion">
-                <strong>What to ask for: </strong>
+                <strong>{t('report.ask')}</strong>
                 {c.suggestion}
               </p>
             </li>
@@ -46,9 +57,9 @@ export default function LeaseReport({ report }) {
         </ul>
       )}
 
-      <h3>Missing clauses ({missing_clauses.length})</h3>
+      <h3>{t('report.missing', missing_clauses.length)}</h3>
       {missing_clauses.length === 0 ? (
-        <p className="muted">Nothing important seems to be missing.</p>
+        <p className="muted">{t('report.missingNone')}</p>
       ) : (
         <ul className="lease-missing">
           {missing_clauses.map((m, i) => (

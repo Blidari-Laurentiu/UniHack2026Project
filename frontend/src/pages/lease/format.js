@@ -1,4 +1,5 @@
-// Labels and formatters shared by the lease components (Person A).
+// Limits, tones and locale-aware formatters shared by the lease components (Person A).
+// The words themselves are in strings.js; this file only knows numbers, dates and colours.
 
 export const LIMITS = {
   textMin: 50,
@@ -9,53 +10,64 @@ export const LIMITS = {
   pdfMaxBytes: 5 * 1024 * 1024, // same as MAX_BYTES in backend/services/pdf_text.py
 };
 
-export const VERDICTS = {
-  below_market: { label: 'Below market', tone: 'ok' },
-  fair: { label: 'Fair price', tone: 'info' },
-  above_market: { label: 'Above market', tone: 'warn' },
-  suspiciously_low: { label: 'Possibly a scam', tone: 'err' },
+// Colour tone per value. The label is t(`verdict.${key}`), t(`risk.${key}`) or t(`severity.${key}`).
+export const VERDICT_TONES = {
+  below_market: 'ok',
+  fair: 'info',
+  above_market: 'warn',
+  suspiciously_low: 'err',
+};
+export const LEVEL_TONES = { low: 'ok', medium: 'warn', high: 'err' };
+
+const LOCALES = {
+  en: { number: 'en-IE', date: 'en-GB', shortMonth: 'en-US', list: 'en-GB' }, // en-US: "Sep", not "Sept"
+  ro: { number: 'ro-RO', date: 'ro-RO', shortMonth: 'ro-RO', list: 'ro' },
 };
 
-export const RISKS = {
-  low: { label: 'Low risk', tone: 'ok' },
-  medium: { label: 'Medium risk', tone: 'warn' },
-  high: { label: 'High risk', tone: 'err' },
-};
+function build(lang) {
+  const loc = LOCALES[lang] || LOCALES.en;
+  // Romanian: "1.500 €" (the default would be "1.500 EUR", too wide for the chart axis).
+  const currency = { style: 'currency', currency: 'EUR', currencyDisplay: 'narrowSymbol' };
+  const eur0 = new Intl.NumberFormat(loc.number, { ...currency, maximumFractionDigits: 0 });
+  const eur2 = new Intl.NumberFormat(loc.number, currency);
+  const int = new Intl.NumberFormat(loc.number, { maximumFractionDigits: 0 });
+  const signed = new Intl.NumberFormat(loc.number, { maximumFractionDigits: 1, signDisplay: 'exceptZero' });
+  const list = new Intl.ListFormat(loc.list, { type: 'conjunction' });
+  const monthDate = (iso) => {
+    const [y, m] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, 1));
+  };
+  const month = (iso, locale, opts) => monthDate(iso).toLocaleString(locale, { timeZone: 'UTC', ...opts });
 
-export const SEVERITIES = {
-  low: { label: 'Low', tone: 'ok' },
-  medium: { label: 'Medium', tone: 'warn' },
-  high: { label: 'High', tone: 'err' },
-};
-
-const eur = new Intl.NumberFormat('en-IE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-});
-
-export const formatEur = (n) => eur.format(n);
-
-export function formatPct(n) {
-  const rounded = Math.round(n * 10) / 10;
-  return `${rounded > 0 ? '+' : ''}${rounded}%`;
+  return {
+    /** "€1,500" / "1.500 €" */
+    eur: (n) => eur0.format(n),
+    /** With cents: "€490.00" / "490,00 €" */
+    eurExact: (n) => eur2.format(n),
+    /** "50,000" / "50.000" */
+    int: (n) => int.format(n),
+    /** "+2.5%" / "+2,5%" */
+    pct: (n) => `${signed.format(n)}%`,
+    /** "14 Nov 2026, 17:57" / "14 nov. 2026, 17:57" */
+    date: (iso) =>
+      new Date(iso).toLocaleString(loc.date, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    /** For a "YYYY-MM-01" month key: "Sep" / "sept." */
+    shortMonth: (iso) => month(iso, loc.shortMonth, { month: 'short' }),
+    /** "September 2026" / "septembrie 2026" */
+    longMonth: (iso) => month(iso, loc.date, { month: 'long', year: 'numeric' }),
+    /** "A, B and C" / "A, B și C" */
+    list: (names) => list.format(names),
+    /** For sorting names with diacritics. */
+    compare: (a, b) => a.localeCompare(b, loc.list),
+  };
 }
 
-export function formatDate(iso) {
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-export const roomsLabel = (n) => `${n} ${n === 1 ? 'room' : 'rooms'}`;
-
-/** "deposit" or "rent_increase" -> "Deposit" / "Rent increase" */
-export function categoryLabel(c) {
-  if (!c) return '';
-  const s = c.replace(/_/g, ' ');
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
+const cache = {};
+/** Formatters for a language code: const f = formatters(t.lang). */
+export const formatters = (lang) => (cache[lang] ||= build(lang));

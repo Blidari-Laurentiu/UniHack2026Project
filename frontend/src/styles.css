@@ -515,6 +515,22 @@ code {
 .lease-fieldset:disabled {
   opacity: 0.6;
 }
+/* EN / RO switch (i18n.jsx), on the right; on the history pages it shares the row with the back link. */
+.lease-lang-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.lease-lang-bar .lease-history-page-crumb {
+  margin: 0 auto 0 0;
+}
+/* A long chip (Romanian labels are longer) may wrap instead of overflowing on a phone. */
+.lease-chip-wrap {
+  white-space: normal;
+}
 .lease-upload {
   display: grid;
   gap: 0.35rem;
@@ -1361,7 +1377,7 @@ code {
 }
 .lease-how-tab {
   flex: 1 1 auto; /* one row; each tab shrinks in proportion to its label */
-  min-width: 0;
+  min-width: min-content; /* but never below its longest word ("Interogările" at 375 px) */
   min-height: 40px;
   line-height: 1.25;
   padding: 0.35rem 0.5rem;

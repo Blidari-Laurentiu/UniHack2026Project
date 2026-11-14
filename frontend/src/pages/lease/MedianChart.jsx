@@ -1,19 +1,13 @@
 // Neighbourhood median rent, one horizontal bar per neighbourhood (Person A).
 // Plain HTML/CSS bars, no chart library. The data comes from LeasePage (GET /pricing/neighbourhoods).
 import { useEffect, useState } from 'react';
-import ErrorBox from '../../components/ErrorBox.jsx';
-import { formatEur, roomsLabel } from './format.js';
+import LeaseError from './LeaseError.jsx';
+import { formatters } from './format.js';
+import { useT } from './strings.js';
 
 const ROOM_OPTIONS = [1, 2, 3];
 // A rent far above every median would squash all the bars; past this factor the marker is pinned.
 const MAX_SCALE_FACTOR = 1.6;
-
-const listingsLabel = (n) => `${n} ${n === 1 ? 'listing' : 'listings'}`;
-
-function joinNames(names) {
-  if (names.length <= 1) return names.join('');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-}
 
 /**
  * props:
@@ -23,6 +17,8 @@ function joinNames(names) {
  *   result         latest analysis shown on the page (or null), for the "your rent" marker
  */
 export default function MedianChart({ data, loading, error, onRetry, rooms, neighbourhood, result }) {
+  const t = useT();
+  const f = formatters(t.lang);
   const [shownRooms, setShownRooms] = useState(Number(rooms) || 2);
 
   // Follow the form when the user changes rooms there.
@@ -37,29 +33,30 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
   }, [result]);
 
   if (!data) {
-    if (error) return <ErrorBox error={error} onRetry={onRetry} />;
+    if (error) return <LeaseError error={error} onRetry={onRetry} />;
     if (loading) {
       return (
         <p className="muted lease-chart-status" role="status">
-          Loading neighbourhood prices…
+          {t('median.loading')}
         </p>
       );
     }
     return null;
   }
   if (data.length === 0) {
-    return <p className="muted lease-chart-status">No listing data yet, so there is nothing to compare.</p>;
+    return <p className="muted lease-chart-status">{t('median.empty')}</p>;
   }
 
   const key = String(shownRooms);
+  const roomsText = t('rooms', shownRooms);
   const rows = data
     .filter((n) => n.median_eur_by_rooms?.[key] != null)
     .map((n) => ({ name: n.name, median: n.median_eur_by_rooms[key], sample: n.sample_size }))
-    .sort((a, b) => b.median - a.median || a.name.localeCompare(b.name));
+    .sort((a, b) => b.median - a.median || f.compare(a.name, b.name));
   const skipped = data
     .filter((n) => n.median_eur_by_rooms?.[key] == null)
     .map((n) => n.name)
-    .sort((a, b) => a.localeCompare(b));
+    .sort(f.compare);
 
   const maxMedian = rows.length ? rows[0].median : 0;
 
@@ -76,7 +73,7 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
     <div className="lease-chart">
       <div className="lease-chart-toolbar">
         <span className="small muted" id="lease-chart-rooms-label">
-          Flat size
+          {t('flatSize')}
         </span>
         <div className="lease-chart-toggle" role="group" aria-labelledby="lease-chart-rooms-label">
           {ROOM_OPTIONS.map((n) => (
@@ -87,18 +84,16 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
               aria-pressed={shownRooms === n}
               onClick={() => setShownRooms(n)}
             >
-              {roomsLabel(n)}
+              {t('rooms', n)}
             </button>
           ))}
         </div>
       </div>
 
-      <p className="small muted lease-chart-sub">
-        Median monthly rent for {roomsLabel(shownRooms)}, highest first.
-      </p>
+      <p className="small muted lease-chart-sub">{t('median.sub', roomsText)}</p>
 
       {rows.length === 0 ? (
-        <p className="muted lease-chart-status">No neighbourhood has {roomsLabel(shownRooms)} listings yet.</p>
+        <p className="muted lease-chart-status">{t('median.none', roomsText)}</p>
       ) : (
         <>
           <ol className="lease-chart-bars" aria-hidden="true">
@@ -114,14 +109,14 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
                 <li
                   key={r.name}
                   className={`lease-chart-row${chosen ? ' lease-chart-row-chosen' : ''}${m ? ' lease-chart-row-marked' : ''}`}
-                  title={`${r.name}: ${formatEur(r.median)} median, ${listingsLabel(r.sample)}`}
+                  title={t('median.rowTitle', r.name, f.eur(r.median), t('listings', r.sample))}
                 >
                   <div className="lease-chart-label">
                     <span className="lease-chart-name">
                       {r.name}
-                      {chosen && <span className="lease-chart-tag">your area</span>}
+                      {chosen && <span className="lease-chart-tag">{t('median.yourArea')}</span>}
                     </span>
-                    <span className="lease-chart-n">{listingsLabel(r.sample)}</span>
+                    <span className="lease-chart-n">{t('listings', r.sample)}</span>
                   </div>
                   <div className="lease-chart-track">
                     <div className="lease-chart-scale">
@@ -132,7 +127,7 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
                           valueInside ? { right: `${100 - pct(r.median)}%` } : { left: `${pct(r.median)}%` }
                         }
                       >
-                        {formatEur(r.median)}
+                        {f.eur(r.median)}
                       </span>
                       {m && <span className="lease-chart-marker" style={{ left: `${mPct}%` }} />}
                     </div>
@@ -142,8 +137,8 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
                           className="lease-chart-marker-label"
                           style={mPct > 55 ? { right: `${100 - mPct}%` } : { left: `${mPct}%` }}
                         >
-                          your rent: {formatEur(m.rent)}
-                          {offScale && ' (off the scale →)'}
+                          {t('median.yourRent', f.eur(m.rent))}
+                          {offScale && t('median.offScale')}
                         </span>
                       </div>
                     )}
@@ -156,14 +151,12 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
           {/* Text alternative for the bars. The class sits on a div: tables ignore width/overflow. */}
           <div className="lease-chart-sr">
             <table>
-              <caption>
-                Median monthly rent for {roomsLabel(shownRooms)} by neighbourhood, highest first
-              </caption>
+              <caption>{t('median.caption', roomsText)}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Neighbourhood</th>
-                  <th scope="col">Median rent</th>
-                  <th scope="col">Listings</th>
+                  <th scope="col">{t('neighbourhood')}</th>
+                  <th scope="col">{t('median.colRent')}</th>
+                  <th scope="col">{t('median.colListings')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -171,11 +164,11 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
                   <tr key={r.name}>
                     <th scope="row">
                       {r.name}
-                      {r.name === neighbourhood && ' (your area)'}
+                      {r.name === neighbourhood && ` (${t('median.yourArea')})`}
                     </th>
                     <td>
-                      {formatEur(r.median)}
-                      {marker?.name === r.name && `; your rent: ${formatEur(marker.rent)}`}
+                      {f.eur(r.median)}
+                      {marker?.name === r.name && `; ${t('median.yourRent', f.eur(marker.rent))}`}
                     </td>
                     <td>{r.sample}</td>
                   </tr>
@@ -187,12 +180,10 @@ export default function MedianChart({ data, loading, error, onRetry, rooms, neig
       )}
 
       {skipped.length > 0 && (
-        <p className="small muted lease-chart-skipped">
-          Not shown (no {roomsLabel(shownRooms)} listings): {joinNames(skipped)}.
-        </p>
+        <p className="small muted lease-chart-skipped">{t('median.skipped', roomsText, f.list(skipped))}</p>
       )}
       <p className="small muted lease-chart-note">
-        Based on sample listing data. Listing counts cover all flat sizes in the neighbourhood.
+        {t('sampleData')} {t('median.note')}
       </p>
     </div>
   );
