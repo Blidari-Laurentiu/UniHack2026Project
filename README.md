@@ -11,7 +11,6 @@ Stack: FastAPI + psycopg 3 on Tiger Cloud (Postgres + TimescaleDB), Google Gemin
 
 More documentation:
 
-- [docs/DEMO.md](docs/DEMO.md): the judge walkthrough for both features.
 - [docs/PLAN.md](docs/PLAN.md): the full plan, phases and tasks.
 - [API.md](API.md): the API contract (endpoints, auth, example responses).
 - [CLAUDE.md](CLAUDE.md): project rules and commands.
@@ -151,7 +150,7 @@ In the Single Page Application's settings, add the frontend origin to **Allowed 
 
 - `/health` and `/health/db` on the backend return 200.
 - Log in on the frontend, then open `/me`.
-- Run the lease demo in [docs/PITCH_A.md](docs/PITCH_A.md).
+- Run a lease check: paste `data/sample_leases/demo_ro.txt`, choose Circumvalațiunii, 2 rooms, 500 EUR, English. Expect **Fair price** and **High risk**.
 - Join an event and run a match.
 - Reload the page on `/lease/history/<id>`.
 
