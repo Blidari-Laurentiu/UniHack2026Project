@@ -85,6 +85,12 @@ function qs(params = {}) {
 export const getMe = () => apiFetch('/me');
 
 // --- Feature A: lease check (Person A) ---
+/** file: a PDF File. Returns { text, pages, characters } for the lease text box; nothing is saved. */
+export const extractLeaseText = (file) => {
+  const body = new FormData();
+  body.append('file', file);
+  return apiFetch('/lease/extract-text', { method: 'POST', body });
+};
 /** payload: { lease_text, neighbourhood, rooms, rent_eur, ui_language } */
 export const analyzeLease = (payload) => apiFetch('/lease/analyze', { method: 'POST', body: payload });
 export const listAnalyses = () => apiFetch('/lease/analyses');

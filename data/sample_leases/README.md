@@ -14,4 +14,6 @@ Every placeholder should come out as `[REDACTED]` after `redact()` in `backend/s
 | `fair_ro.txt` | Control case. 1 room, Iosefin, 320 EUR. | Low risk, no missing key clauses. It has a handover report with photos and meter readings, a deposit returned within 30 days with itemised deductions, rent fixed for 12 months, 48-hour notice before entry and a 30-day notice period for both sides. |
 | `missing_clauses_ro.txt` | Missing-clause case. 3 rooms, Fabric, 550 EUR. | Missing: handover report (proces-verbal de predare-primire) and inventory, notice period or early termination terms, the deadline and conditions for returning the deposit, who pays for repairs, and the rules for owner access. Few explicitly risky clauses. |
 
+`demo_ro.pdf` is `demo_ro.txt` printed to PDF (2 pages), for trying the PDF upload. Its extracted text differs from the `.txt` only in line breaks, so it is redacted the same way and gets the same cached answer.
+
 When the Gemini service caches a result (`DEMO_CACHE=1`), it goes in `demo_ro.json` next to `demo_ro.txt`.

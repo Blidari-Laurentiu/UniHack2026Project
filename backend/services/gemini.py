@@ -37,10 +37,12 @@ class GeminiError(Exception):
 
 # ---------- redaction ----------
 
-# IBAN: RO + 2 check digits + 4-letter bank code + 16 characters, spaces allowed between them.
+# IBAN: RO + 2 check digits + 4-letter bank code + 16 characters, whitespace allowed between
+# them. That includes a line break or a no-break space: text taken from a PDF often wraps in
+# the middle of an IBAN, because it is the one ID that is written with spaces.
 # Any case ("ro49aaaa…" is still an IBAN): words like "România" never match, because the
 # pattern needs two digits right after "ro" and 20 more characters after that.
-_IBAN = re.compile(r"\bRO\d{2} ?[A-Z]{4}(?: ?[0-9A-Z]){16}\b", re.IGNORECASE)
+_IBAN = re.compile(r"\bRO\d{2}\s*[A-Z]{4}(?:\s*[0-9A-Z]){16}\b", re.IGNORECASE)
 # CNP after its label, written with spaces, dots or dashes ("CNP: 1 960523 350011").
 # Only next to the label, so phone numbers and amounts with separators are left alone.
 _CNP_LABELLED = re.compile(

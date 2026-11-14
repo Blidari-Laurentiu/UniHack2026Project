@@ -20,7 +20,7 @@ import logging
 from uuid import UUID
 
 import psycopg
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from psycopg.types.json import Jsonb
 
 from auth import authenticate, current_user, upsert_user
@@ -31,10 +31,12 @@ from schemas.lease import (
     LeaseAnalysisSummary,
     LeaseAnalyzeRequest,
     LeaseReport,
+    LeaseTextExtract,
     PriceInputs,
     PriceVerdict,
 )
 from services.gemini import REDACTED, GeminiError, analyze_lease, redact
+from services.pdf_text import MAX_BYTES, PdfError, extract_text
 from services.pricing import MIN_SAMPLE, WINDOW, PricingUnavailable, price_verdict
 
 log = logging.getLogger("uvicorn.error")
@@ -153,6 +155,20 @@ async def analyze(
         log.warning("saving lease analysis failed: %s", type(exc).__name__)
         raise HTTPException(status_code=503, detail="Could not save the analysis. Please try again.") from exc
     return _to_analysis(row)
+
+
+@router.post("/extract-text", response_model=LeaseTextExtract)
+def extract_lease_text(file: UploadFile, identity: dict = Depends(authenticate)):
+    """Text of an uploaded lease PDF, for the form's text box. No database, no Gemini, nothing saved.
+
+    A plain `def`, so FastAPI runs it in a worker thread: parsing a PDF is CPU work.
+    """
+    data = file.file.read(MAX_BYTES + 1)  # one byte past the limit is enough to know it is too big
+    try:
+        text, pages = extract_text(data)
+    except PdfError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return LeaseTextExtract(text=text, pages=pages, characters=len(text))
 
 
 @router.get("/analyses", response_model=list[LeaseAnalysisSummary])
