@@ -9,7 +9,7 @@ from common import connect, require_dev
 TABLES = [
     "reports", "group_members", "event_groups", "event_signups", "events",
     "user_availability", "user_interests", "interests",
-    "lease_analyses", "listings", "users",
+    "lease_analyses", "listings", "student_verifications", "users",
 ]
 
 

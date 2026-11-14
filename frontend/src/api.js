@@ -5,6 +5,9 @@ import { API_URL, DEV_USER } from './config.js';
 
 let tokenGetter = null;
 
+/** The backend's 403 detail for an account whose email is not verified yet. */
+export const EMAIL_NOT_VERIFIED = 'verify your email address first';
+
 /** Called once by the Auth0 wrapper with getAccessTokenSilently. */
 export function setTokenGetter(fn) {
   tokenGetter = fn;
@@ -83,6 +86,12 @@ function qs(params = {}) {
 
 // --- shared ---
 export const getMe = () => apiFetch('/me');
+export const getUniversities = () => apiFetch('/student/universities');
+export const getStudentStatus = () => apiFetch('/student/status');
+export const startStudentVerification = ({ university, email }) =>
+  apiFetch('/student/start', { method: 'POST', body: { university, email } });
+export const confirmStudentCode = (code) =>
+  apiFetch('/student/confirm', { method: 'POST', body: { code } });
 
 // --- Feature A: lease check (Person A) ---
 /** file: a PDF File. Returns { text, pages, characters } for the lease text box; nothing is saved. */

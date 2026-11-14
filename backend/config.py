@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     DEMO_CACHE: bool = False
     CORS_ORIGINS: str = "http://localhost:5173"
+    # Outgoing email (student verification codes). Port 465 uses SSL, anything else STARTTLS.
+    # Unset SMTP_HOST: in dev the code is written to the server log, elsewhere sending fails (503).
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
     # Fail closed: the X-Dev-User bypass, seeding and reset need an explicit APP_ENV=dev.
     APP_ENV: str = "production"
 
