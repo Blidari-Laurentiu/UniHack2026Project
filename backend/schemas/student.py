@@ -28,6 +28,8 @@ class StudentStatusOut(BaseModel):
     university: str | None = None  # slug
     student_email: str | None = None
     verified_at: datetime | None = None
+    expires_at: datetime | None = None  # one year after verified_at
+    expired: bool = False  # was a student, the year is over: verify again
     pending: PendingOut | None = None  # a code was sent and can still be typed
 
 

@@ -10,6 +10,7 @@ from auth import EmailNotVerified, bearer_scheme, current_user, dev_bypass_enabl
 from db import get_conn
 from schemas.events import Event, Group, GroupMember, Interest, MatchResult, SignupOut
 from services.matching import form_groups
+from services.student import active_sql
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -52,6 +53,36 @@ def _require_upcoming(event: dict) -> None:
         raise HTTPException(status_code=409, detail="this event has already started")
 
 
+def remove_from_groups(conn, user_id: UUID, event_id: UUID | None = None) -> None:
+    """Take the user out of their groups: for one event, or for every event (account deletion).
+
+    A group left with fewer than MIN_GROUP_SIZE members is dissolved and the others go back
+    to the front of the waiting list. The caller holds the lock on the event rows.
+    """
+    left = conn.execute(
+        """
+        delete from group_members gm using event_groups g
+        where gm.group_id = g.id and gm.user_id = %s and (%s::uuid is null or g.event_id = %s)
+        returning gm.group_id, g.event_id
+        """,
+        (user_id, event_id, event_id),
+    ).fetchall()
+    for row in left:
+        rest = [
+            r["user_id"]
+            for r in conn.execute(
+                "select user_id from group_members where group_id = %s", (row["group_id"],)
+            )
+        ]
+        if len(rest) < MIN_GROUP_SIZE:
+            conn.execute(
+                "update event_signups set status = 'waiting' "
+                "where event_id = %s and user_id = any(%s)",
+                (row["event_id"], rest),
+            )
+            conn.execute("delete from event_groups where id = %s", (row["group_id"],))
+
+
 def _load_groups(conn, group_ids: list[UUID]) -> list[Group]:
     """Groups with their members, in the order of group_ids."""
     if not group_ids:
@@ -65,8 +96,8 @@ def _load_groups(conn, group_ids: list[UUID]) -> list[Group]:
     }
     members: dict[UUID, list[GroupMember]] = {gid: [] for gid in groups}
     for row in conn.execute(
-        """
-        select gm.group_id, u.id as user_id, u.display_name, u.is_student
+        f"""
+        select gm.group_id, u.id as user_id, u.display_name, {active_sql("u")} as is_student
         from group_members gm join users u on u.id = gm.user_id
         where gm.group_id = any(%s)
         order by u.display_name nulls last, u.id
@@ -174,29 +205,7 @@ def leave_event(event_id: UUID, user: dict = Depends(current_user), conn=Depends
         raise HTTPException(status_code=404, detail="you have not joined this event")
 
     if signup["status"] == "grouped":
-        left = conn.execute(
-            """
-            delete from group_members gm using event_groups g
-            where gm.group_id = g.id and g.event_id = %s and gm.user_id = %s
-            returning gm.group_id
-            """,
-            (event_id, user["id"]),
-        ).fetchall()
-        for row in left:
-            rest = [
-                r["user_id"]
-                for r in conn.execute(
-                    "select user_id from group_members where group_id = %s", (row["group_id"],)
-                )
-            ]
-            if len(rest) < MIN_GROUP_SIZE:
-                # Too small to go on: the others go back to the front of the waiting list.
-                conn.execute(
-                    "update event_signups set status = 'waiting' "
-                    "where event_id = %s and user_id = any(%s)",
-                    (event_id, rest),
-                )
-                conn.execute("delete from event_groups where id = %s", (row["group_id"],))
+        remove_from_groups(conn, user["id"], event_id)
 
     conn.execute(
         "update event_signups set status = 'left' where event_id = %s and user_id = %s",

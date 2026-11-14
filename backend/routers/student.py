@@ -28,8 +28,11 @@ from services.student import (
     MAX_CODES_PER_HOUR,
     RESEND_AFTER,
     UNIVERSITIES,
+    VALID_FOR,
+    active_sql,
     code_matches,
     email_matches,
+    has_plus_tag,
     hash_code,
     new_code,
     normalize_email,
@@ -50,7 +53,11 @@ MAIL_NOT_SET_UP = "sending email is not set up on the server"
 
 def _status(conn, user_id) -> StudentStatusOut:
     user = conn.execute(
-        "select is_student, university, student_email, student_verified_at from users where id = %s",
+        f"""
+        select {active_sql()} as is_student, university, student_email, student_verified_at,
+               student_verified_at + {VALID_FOR} as expires_at
+        from users where id = %s
+        """,
         (user_id,),
     ).fetchone()
     pending = conn.execute(
@@ -68,6 +75,9 @@ def _status(conn, user_id) -> StudentStatusOut:
         university=user["university"],
         student_email=user["student_email"],
         verified_at=user["student_verified_at"],
+        expires_at=user["expires_at"],
+        # Verified once, but over a year ago: the user has to verify again.
+        expired=user["student_verified_at"] is not None and not user["is_student"],
         pending=PendingOut(**pending) if pending and not user["is_student"] else None,
     )
 
@@ -108,6 +118,9 @@ def start(
         raise HTTPException(
             status_code=422, detail=f"use your student email for {university.slug.upper()} ({domains})"
         )
+    if has_plus_tag(email):
+        # One mailbox, one account: ana+x@... is the same mailbox as ana@...
+        raise HTTPException(status_code=422, detail="use your university email without a +tag")
     if not mail_configured() and not dev_bypass_enabled():
         raise HTTPException(status_code=503, detail=MAIL_NOT_SET_UP)
 

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from config import settings
 from db import pool
-from routers import admin, events, health, lease, me, pricing, profile, student
+from routers import account, admin, events, health, lease, me, pricing, profile, student
 
 log = logging.getLogger("uvicorn.error")
 
@@ -46,5 +46,5 @@ async def database_error(request: Request, exc: psycopg.Error) -> JSONResponse:
     )
 
 
-for module in (health, me, admin, student, lease, pricing, events, profile):
+for module in (health, me, account, admin, student, lease, pricing, events, profile):
     app.include_router(module.router)

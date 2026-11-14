@@ -24,7 +24,7 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 
 ## Student verification (shared)
 
-`is_student` is set only here, never from a token claim. The user picks a university and types their student email there; we email a 6-digit code; typing it makes them a student.
+`is_student` is set only here, never from a token claim. The user picks a university and types their student email there; we email a 6-digit code; typing it makes them a student **for one year**. After that `is_student` is `false` everywhere (`/me`, `/profile`, group members) and `StudentStatus` has `"expired": true` until the user verifies again. One university email belongs to one account, also after it expired.
 
 | Method | Path | Auth | Request | Response example | Owner |
 | --- | --- | --- | --- | --- | --- |
@@ -37,12 +37,30 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 
 ```json
 {"is_student": false, "university": null, "student_email": null, "verified_at": null,
+ "expires_at": null, "expired": false,
  "pending": {"university": "uvt", "student_email": "ana.pop03@e-uvt.ro",
              "expires_at": "2026-11-14T16:10:00Z", "resend_after": "2026-11-14T16:01:00Z"}}
 ```
 
-- **Start.** 422 `unknown university` or `use your student email for UVT (@e-uvt.ro)` (the domain must be a student domain of that university, exact match). 409 `you are already a verified student` or `this university email is already used by another account`. 429 `wait N seconds before asking for a new code` (60 s between codes) or `too many codes in the last hour, try again later` (5 per hour). 503 when the email cannot be sent, or `sending email is not set up on the server` (no `MAIL_FROM` with `BREVO_API_KEY` or `SMTP_HOST` outside dev; in dev the code is written to the server log instead). A new code replaces the previous one.
+- **Start.** 422 `unknown university`, `use your student email for UVT (@e-uvt.ro)` (the domain must be a student domain of that university, exact match) or `use your university email without a +tag`. 409 `you are already a verified student` or `this university email is already used by another account`. 429 `wait N seconds before asking for a new code` (60 s between codes) or `too many codes in the last hour, try again later` (5 per hour). 503 when the email cannot be sent, or `sending email is not set up on the server` (no `MAIL_FROM` with `BREVO_API_KEY` or `SMTP_HOST` outside dev; in dev the code is written to the server log instead). A new code replaces the previous one.
 - **Confirm.** Codes expire after 10 minutes and allow 5 wrong tries. 400 `no code to confirm, ask for a new one`, `this code has expired, ask for a new one` or `wrong code, N tries left`. 429 `too many wrong codes, ask for a new one`. 409 as above.
+
+## Account settings (shared)
+
+The profile (name, interests, free time) is edited with `PUT /profile`. Turning 2FA **on** is not an API call: the frontend logs in again with the extra parameter `enroll_mfa=true` and the Post-Login Action shows Auth0's enrolment page.
+
+| Method | Path | Auth | Request | Response example | Owner |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/account` | JWT | – | `{"login_method": "password", "email": "ana@example.com", "can_change_password": true, "mfa": {"available": true, "enabled": false, "required": false}, "can_delete": true}` | B |
+| POST | `/account/password-reset` | JWT | – | 202 `{"sent_to": "ana@example.com"}` | B |
+| DELETE | `/account/mfa` | JWT | – | `{"available": true, "enabled": false, "required": false}` | B |
+| DELETE | `/account` | JWT | – | 204 | B |
+
+- **Account.** `login_method` is `password`, `google`, `github`, `email_code`, `dev` or `other`. `mfa.available` is false when the server has no Management API credentials (or for a dev user); `mfa.enabled` is `null` when Auth0 could not be asked; `mfa.required` is true for admins.
+- **Password reset.** Auth0 emails a link to choose a new password. 409 `this account has no password: you sign in with Google` for accounts without a password.
+- **Turn 2FA off.** 409 `two-factor authentication is not on` or `admin accounts must keep two-factor authentication on`. 403 `sign in again with your authenticator code to turn two-factor authentication off` when this login did not use the code.
+- **Delete.** Removes the user row and everything that hangs on it (saved lease checks, profile, signups, student verification), takes the user out of their groups (a group left under 3 is dissolved, as when leaving) and deletes the Auth0 user. If Auth0 fails, nothing is deleted.
+- **503** `account management is not set up on the server` (no `AUTH0_MGMT_CLIENT_ID`/`AUTH0_MGMT_CLIENT_SECRET`; a dev user can still be deleted) or `the login service could not be reached, try again in a few minutes`.
 
 ## Lease (Feature A)
 

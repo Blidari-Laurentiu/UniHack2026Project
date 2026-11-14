@@ -37,6 +37,12 @@ export default function StudentVerification({ onChange }) {
   const [changing, setChanging] = useState(false); // show step 1 again while a code is pending
 
   const s = status.data;
+  // After the year is over the user verifies again: start from the mailbox they used.
+  useEffect(() => {
+    if (!s?.expired) return;
+    setUniversity((u) => u || s.university || '');
+    setEmail((e) => e || s.student_email || '');
+  }, [s?.expired, s?.university, s?.student_email]);
   const pending = s?.pending && !changing ? s.pending : null;
   const resendIn = useCountdown(pending?.resend_after);
   const chosen = list.find((u) => u.slug === university);
@@ -99,6 +105,20 @@ export default function StudentVerification({ onChange }) {
             <span className="muted"> on {new Date(s.verified_at).toLocaleDateString()}</span>
           )}
           .
+          {s.expires_at && (
+            <>
+              {' '}
+              Valid until <b>{new Date(s.expires_at).toLocaleDateString()}</b>, then you confirm
+              your university email again.
+            </>
+          )}
+        </p>
+      )}
+
+      {s?.expired && !pending && (
+        <p role="status">
+          Your student status ended on <b>{new Date(s.expires_at).toLocaleDateString()}</b>. It
+          lasts one year. Confirm your university email again to get the badge back.
         </p>
       )}
 

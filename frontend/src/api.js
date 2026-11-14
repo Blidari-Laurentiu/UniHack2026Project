@@ -86,6 +86,10 @@ function qs(params = {}) {
 
 // --- shared ---
 export const getMe = () => apiFetch('/me');
+export const getAccount = () => apiFetch('/account');
+export const requestPasswordReset = () => apiFetch('/account/password-reset', { method: 'POST' });
+export const turnOffMfa = () => apiFetch('/account/mfa', { method: 'DELETE' });
+export const deleteAccount = () => apiFetch('/account', { method: 'DELETE' });
 export const getUniversities = () => apiFetch('/student/universities');
 export const getStudentStatus = () => apiFetch('/student/status');
 export const startStudentVerification = ({ university, email }) =>

@@ -8,6 +8,7 @@ from auth import current_user
 from db import get_conn
 from schemas.common import Slot
 from schemas.events import Interest, ProfileIn, ProfileOut
+from services.student import active_sql
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -16,7 +17,7 @@ SLOT_ORDER = list(get_args(Slot))
 
 def load_profile(conn, user_id) -> ProfileOut:
     user = conn.execute(
-        "select display_name, is_student from users where id = %s", (user_id,)
+        f"select display_name, {active_sql()} as is_student from users where id = %s", (user_id,)
     ).fetchone()
     interests = conn.execute(
         """
