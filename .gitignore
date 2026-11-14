@@ -18,3 +18,8 @@ build/
 # misc
 .DS_Store
 .vscode/
+
+# team notes, kept on our laptops only
+docs/PITCH_*.md
+docs/DEMO.md
+docs/HANDOFF_PROMPT.md
