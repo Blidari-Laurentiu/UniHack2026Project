@@ -10,6 +10,7 @@ Check the setup from backend/:  python -m services.mailer you@example.com
 
 import json
 import logging
+import re
 import smtplib
 import ssl
 import urllib.error
@@ -33,9 +34,22 @@ class MailError(OSError):
     """The provider refused or failed to send. The message says why, without secrets."""
 
 
+MAIL_FROM_FORMAT = "Newcomer Hub <you@example.com>"
+ADDRESS_RE = re.compile(r"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$")
+
+
+def sender() -> tuple[str, str] | None:
+    """(name, address) from MAIL_FROM, or None when it is not "Name <address>" or "address".
+
+    "Newcomer Hub you@example.com" (no angle brackets) is refused: the whole string would
+    be taken as the address.
+    """
+    name, address = parseaddr(settings.MAIL_FROM)
+    return (name, address) if ADDRESS_RE.match(address) else None
+
+
 def mail_configured() -> bool:
-    has_sender = "@" in parseaddr(settings.MAIL_FROM)[1]
-    return has_sender and bool(settings.BREVO_API_KEY or settings.SMTP_HOST)
+    return sender() is not None and bool(settings.BREVO_API_KEY or settings.SMTP_HOST)
 
 
 def send_email(to: str, subject: str, text: str) -> None:
@@ -49,10 +63,10 @@ def send_email(to: str, subject: str, text: str) -> None:
 
 
 def _send_brevo(to: str, subject: str, text: str) -> None:
-    name, address = parseaddr(settings.MAIL_FROM)
-    sender = {"email": address, **({"name": name} if name else {})}
+    name, address = sender()
+    from_ = {"email": address, **({"name": name} if name else {})}
     body = json.dumps(
-        {"sender": sender, "to": [{"email": to}], "subject": subject, "textContent": text}
+        {"sender": from_, "to": [{"email": to}], "subject": subject, "textContent": text}
     ).encode()
     request = urllib.request.Request(
         BREVO_URL,
@@ -105,8 +119,10 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 2:
         sys.exit("usage: python -m services.mailer you@example.com")
+    if sender() is None:
+        sys.exit(f"MAIL_FROM is {settings.MAIL_FROM!r}; it must look like: {MAIL_FROM_FORMAT}")
     if not mail_configured():
-        sys.exit("not configured: set MAIL_FROM and BREVO_API_KEY (or SMTP_HOST) in backend/.env")
+        sys.exit("not configured: set BREVO_API_KEY (or SMTP_HOST) in backend/.env")
     way = "Brevo API" if settings.BREVO_API_KEY else f"SMTP {settings.SMTP_HOST}"
     try:
         send_email(sys.argv[1], "Newcomer Hub test email", "If you can read this, sending works.\n")

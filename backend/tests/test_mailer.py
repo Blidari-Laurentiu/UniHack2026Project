@@ -90,6 +90,8 @@ def test_network_error_propagates(brevo):
         ("hub@example.com", "", "smtp.example.com", True),
         ("", "k", "", False),  # no sender
         ("Newcomer Hub", "k", "", False),  # a name is not an address
+        ("Newcomer Hub hub@example.com", "k", "", False),  # no angle brackets
+        ("Newcomer Hub <hub@example>", "k", "", False),
         ("Hub <hub@example.com>", "", "", False),  # no way to send
     ],
 )
