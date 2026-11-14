@@ -3,6 +3,8 @@
 Base URL: `http://localhost:8000` (interactive docs at `/docs`). Models live in `backend/schemas/` (`common.py`, `lease.py`, `events.py`); this file must match them.
 
 - **Auth.** "JWT" means the header `Authorization: Bearer <Auth0 access token>`. When `APP_ENV=dev` only, `X-Dev-User: <name>` can replace it. "Public" routes need no auth.
+- **Verified email.** A token is only accepted when its claim `https://newcomer-hub/email_verified` is `true` (set by the Post-Login Action from Auth0's `email_verified`; a token without it counts as not verified). Otherwise every JWT route answers 403 `{"detail": "verify your email address first"}` and no `users` row is created. `GET /events` (optional auth) treats such a caller as anonymous. Dev users count as verified.
+- **Roles.** Auth0 roles `admin` and `moderator` reach the API in the access-token claim `https://newcomer-hub/roles`; `https://newcomer-hub/mfa` is `true` when the login used a second factor. Both are set by a Post-Login Action. A caller without a required role gets 403 `{"detail": "you do not have permission to do this"}`. An admin account whose login had no second factor gets 403 `{"detail": "admin accounts must sign in with multi-factor authentication"}` on role-protected routes. When `APP_ENV=dev` only, `X-Dev-Roles: admin,moderator` sets the roles next to `X-Dev-User`.
 - **Errors.** Errors are always `{"detail": "..."}`: 401 for a missing or bad token, 404 for an unknown id, 422 for an invalid body (FastAPI validation; there `detail` is a list), 429 when the lease-check hourly limit is reached, and 503 when price data is unavailable (empty listings table) or the database is down, on any endpoint.
 - **IDs.** All ids are UUID strings. Times are ISO 8601 with a timezone.
 - **Data.** All endpoints are real and read the database; none are mocked.
@@ -16,7 +18,31 @@ The endpoint list was inferred from the `api.js` functions in docs/PLAN.md promp
 | --- | --- | --- | --- | --- | --- |
 | GET | `/health` | Public | – | `{"status": "ok"}` | A |
 | GET | `/health/db` | Public | – | `{"status": "ok", "db": true}` | A |
-| GET | `/me` | JWT | – | `{"id": "…", "auth0_sub": "dev\|alice", "display_name": "alice", "email": null, "is_student": false, "created_at": "2026-11-13T13:38:42Z"}` | A |
+| GET | `/me` | JWT | – | `{"id": "…", "auth0_sub": "dev\|alice", "display_name": "alice", "email": null, "is_student": false, "created_at": "2026-11-13T13:38:42Z", "roles": ["admin"], "mfa": true}` | A |
+| GET | `/admin/users` | JWT, role `admin` | – | `[{"id": "…", "auth0_sub": "google-oauth2\|1082…", "display_name": "Ana", "email": "ana@gmail.com", "is_student": false, "created_at": "2026-11-13T13:38:42Z"}]` (newest first, at most 200) | A |
+| GET | `/admin/reports` | JWT, role `moderator` or `admin` | – | `[{"id": "…", "reporter_id": "…", "reported_user_id": "…", "event_id": null, "group_id": null, "reason": "…", "created_at": "2026-11-13T13:38:42Z"}]` (newest first, at most 200) | A |
+
+## Student verification (shared)
+
+`is_student` is set only here, never from a token claim. The user picks a university and types their student email there; we email a 6-digit code; typing it makes them a student.
+
+| Method | Path | Auth | Request | Response example | Owner |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/student/universities` | Public | – | `[{"slug": "uvt", "name": "Universitatea de Vest din Timișoara (UVT)", "domains": ["e-uvt.ro"]}, ...]` | A |
+| GET | `/student/status` | JWT | – | `StudentStatus` (below) | A |
+| POST | `/student/start` | JWT | `{"university": "uvt", "email": "ana.pop03@e-uvt.ro"}` | 202 `StudentStatus` with `pending` | A |
+| POST | `/student/confirm` | JWT | `{"code": "482913"}` | `StudentStatus` with `"is_student": true` | A |
+
+`StudentStatus`:
+
+```json
+{"is_student": false, "university": null, "student_email": null, "verified_at": null,
+ "pending": {"university": "uvt", "student_email": "ana.pop03@e-uvt.ro",
+             "expires_at": "2026-11-14T16:10:00Z", "resend_after": "2026-11-14T16:01:00Z"}}
+```
+
+- **Start.** 422 `unknown university` or `use your student email for UVT (@e-uvt.ro)` (the domain must be a student domain of that university, exact match). 409 `you are already a verified student` or `this university email is already used by another account`. 429 `wait N seconds before asking for a new code` (60 s between codes) or `too many codes in the last hour, try again later` (5 per hour). 503 when the email cannot be sent, or `sending email is not set up on the server` (no `SMTP_HOST` outside dev; in dev the code is written to the server log instead). A new code replaces the previous one.
+- **Confirm.** Codes expire after 10 minutes and allow 5 wrong tries. 400 `no code to confirm, ask for a new one`, `this code has expired, ask for a new one` or `wrong code, N tries left`. 429 `too many wrong codes, ask for a new one`. 409 as above.
 
 ## Lease (Feature A)
 

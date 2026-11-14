@@ -24,7 +24,7 @@ FAKE_USER = {
     "is_student": True,
     "created_at": datetime(2026, 11, 13, tzinfo=timezone.utc),
 }
-FAKE_IDENTITY = {"auth0_sub": "dev|mei", "email": None, "is_student": True, "display_name": "Mei"}
+FAKE_IDENTITY = {"auth0_sub": "dev|mei", "email": None, "display_name": "Mei"}
 EVENT_ID ="e1000000-0000-4000-8000-000000000001"
 ANALYSIS_ID = "a1111111-1111-4111-8111-111111111111"
 LEASE_BODY = {
@@ -49,6 +49,11 @@ AUTHED = [
     ("get", f"/events/{EVENT_ID}/my-group", None),
     ("get", "/profile", None),
     ("put", "/profile", PROFILE_BODY),
+    ("get", "/admin/users", None),
+    ("get", "/admin/reports", None),
+    ("get", "/student/status", None),
+    ("post", "/student/start", {"university": "uvt", "email": "ana@e-uvt.ro"}),
+    ("post", "/student/confirm", {"code": "123456"}),
 ]
 
 

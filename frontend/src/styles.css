@@ -541,6 +541,22 @@ code {
 .lease-result-card {
   scroll-margin-top: 4.5rem;
 }
+.verify-email {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  margin-block: 0.75rem;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+.verify-email-actions {
+  display: flex;
+  gap: 0.5rem;
+}
 .lease-login {
   display: flex;
   flex-wrap: wrap;

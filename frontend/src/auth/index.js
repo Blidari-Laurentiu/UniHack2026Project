@@ -3,3 +3,4 @@ export { default as ProtectedRoute } from './ProtectedRoute.jsx';
 export { default as LoginButton } from './LoginButton.jsx';
 export { default as LogoutButton } from './LogoutButton.jsx';
 export { default as useAuth } from './useAuth.js';
+export { default as VerifyEmailNotice } from './VerifyEmailNotice.jsx';

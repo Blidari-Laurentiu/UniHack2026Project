@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { analyzeLease, getAnalysis, getNeighbourhoods, listAnalyses } from '../../api.js';
-import { LoginButton, useAuth } from '../../auth/index.js';
+import { LoginButton, VerifyEmailNotice, useAuth } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import useApi from '../../useApi.js';
 import AnalysisHistory from './AnalysisHistory.jsx';
@@ -24,14 +24,14 @@ function useElapsedSeconds(running) {
 }
 
 export default function LeasePage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, canUse, isLoading: authLoading } = useAuth();
 
   const hoods = useApi(getNeighbourhoods);
   const neighbourhoods = (hoods.data || []).map((n) => n.name);
 
   const history = useApi(
-    () => (isAuthenticated ? listAnalyses() : Promise.resolve([])),
-    [isAuthenticated],
+    () => (canUse ? listAnalyses() : Promise.resolve([])),
+    [canUse],
   );
 
   const [values, setValues] = useState(EMPTY_FORM);
@@ -79,7 +79,7 @@ export default function LeasePage() {
     }
   }
 
-  const locked = !isAuthenticated;
+  const locked = !canUse;
 
   return (
     <>
@@ -93,7 +93,10 @@ export default function LeasePage() {
 
       <section className="card">
         <h2>Your lease</h2>
-        {!authLoading && locked && (
+        {!authLoading && isAuthenticated && !canUse && (
+          <VerifyEmailNotice action="check a lease and keep your past checks" />
+        )}
+        {!authLoading && !isAuthenticated && (
           <div className="lease-login">
             <span>Log in to check a lease and keep your past checks.</span>
             <LoginButton className="btn btn-primary btn-sm" />
@@ -161,7 +164,7 @@ export default function LeasePage() {
         />
       </section>
 
-      {isAuthenticated && (
+      {canUse && (
         <section className="card">
           <div className="lease-history-page-cardhead">
             <h2>Your past checks</h2>
