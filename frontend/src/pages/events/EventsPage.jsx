@@ -1,7 +1,7 @@
 // Person B owns this folder: profile, event list with filters, join, match and group card.
 import { useState } from 'react';
 import { getInterests, getMe, getProfile, listEvents } from '../../api.js';
-import { useAuth } from '../../auth/index.js';
+import { VerifyEmailNotice, useAuth } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import useApi from '../../useApi.js';
 import EventCard from './EventCard.jsx';
@@ -75,16 +75,16 @@ function ProfilePanel({ interests, authUser }) {
 }
 
 export default function EventsPage() {
-  const { isAuthenticated, user: authUser } = useAuth();
+  const { isAuthenticated, canUse, user: authUser } = useAuth();
   const [filters, setFilters] = useState({ interest: '', from: '', to: '' });
   const setFilter = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.value }));
   const hasFilters = Boolean(filters.interest || filters.from || filters.to);
 
   const interests = useApi(getInterests);
-  const me = useApi(() => (isAuthenticated ? getMe() : Promise.resolve(null)), [isAuthenticated]);
+  const me = useApi(() => (canUse ? getMe() : Promise.resolve(null)), [canUse]);
   const events = useApi(
     () => listEvents(toQuery(filters)),
-    [isAuthenticated, filters.interest, filters.from, filters.to],
+    [canUse, filters.interest, filters.from, filters.to],
   );
   const list = events.data || [];
 
@@ -98,7 +98,13 @@ export default function EventsPage() {
         </p>
       </section>
 
-      {isAuthenticated && (
+      {isAuthenticated && !canUse && (
+        <section className="card">
+          <VerifyEmailNotice action="join events and get matched into a group" />
+        </section>
+      )}
+
+      {canUse && (
         <section className="card">
           <ProfilePanel interests={interests.data || []} authUser={authUser} />
         </section>
@@ -152,7 +158,8 @@ export default function EventsPage() {
             <EventCard
               key={ev.id}
               event={ev}
-              isAuthenticated={isAuthenticated}
+              isAuthenticated={canUse}
+              needsVerification={isAuthenticated && !canUse}
               myId={me.data?.id}
               onChanged={events.reload}
             />

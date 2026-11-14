@@ -7,7 +7,7 @@ import { formatWhen, slotLabel } from './slots.js';
 
 const MIN_GROUP = 3;
 
-export default function EventCard({ event, isAuthenticated, myId, onChanged }) {
+export default function EventCard({ event, isAuthenticated, needsVerification, myId, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState('');
@@ -89,7 +89,8 @@ export default function EventCard({ event, isAuthenticated, myId, onChanged }) {
             : `${event.signup_count} ${event.signup_count === 1 ? 'person wants' : 'people want'} to go`}
         </span>
 
-        {!isAuthenticated && <LoginButton className="btn btn-sm" />}
+        {!isAuthenticated && !needsVerification && <LoginButton className="btn btn-sm" />}
+        {needsVerification && <span className="badge badge-warn">Verify your email to join</span>}
 
         {isAuthenticated && (status === null || status === 'left') && (
           <button className="btn btn-primary" onClick={join} disabled={busy}>

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { analyzeLease, getAnalysis, getNeighbourhoods, listAnalyses } from '../../api.js';
-import { LoginButton, useAuth } from '../../auth/index.js';
+import { LoginButton, VerifyEmailNotice, useAuth } from '../../auth/index.js';
 import useApi from '../../useApi.js';
 import AnalysisHistory from './AnalysisHistory.jsx';
 import AnalysisResult from './AnalysisResult.jsx';
@@ -27,14 +27,14 @@ function useElapsedSeconds(running) {
 
 export default function LeasePage() {
   const t = useT();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, canUse, isLoading: authLoading } = useAuth();
 
   const hoods = useApi(getNeighbourhoods);
   const neighbourhoods = (hoods.data || []).map((n) => n.name);
 
   const history = useApi(
-    () => (isAuthenticated ? listAnalyses() : Promise.resolve([])),
-    [isAuthenticated],
+    () => (canUse ? listAnalyses() : Promise.resolve([])),
+    [canUse],
   );
 
   // The report language starts as the interface language and follows the EN / RO switch,
@@ -93,7 +93,7 @@ export default function LeasePage() {
     }
   }
 
-  const locked = !isAuthenticated;
+  const locked = !canUse;
 
   return (
     <LangScope>
@@ -107,7 +107,11 @@ export default function LeasePage() {
 
       <section className="card">
         <h2>{t('page.yourLease')}</h2>
-        {!authLoading && locked && (
+        {/* The verify-email notice belongs to the shared auth code and stays in English. */}
+        {!authLoading && isAuthenticated && !canUse && (
+          <VerifyEmailNotice action="check a lease and keep your past checks" />
+        )}
+        {!authLoading && !isAuthenticated && (
           <div className="lease-login">
             <span>{t('page.loginPrompt')}</span>
             <LoginButton className="btn btn-primary btn-sm" />
@@ -174,7 +178,7 @@ export default function LeasePage() {
         />
       </section>
 
-      {isAuthenticated && (
+      {canUse && (
         <section className="card">
           <div className="lease-history-page-cardhead">
             <h2>{t('page.pastChecks')}</h2>

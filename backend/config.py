@@ -15,6 +15,16 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     DEMO_CACHE: bool = False
     CORS_ORIGINS: str = "http://localhost:5173"
+    # Outgoing email (student verification codes). MAIL_FROM is "Name <address>".
+    # BREVO_API_KEY set: sent through Brevo's HTTPS API (works on Render's free plan, which
+    # blocks SMTP ports). Otherwise SMTP_HOST (port 465 = SSL, other ports = STARTTLS).
+    # Neither: in dev the code is written to the server log, elsewhere sending fails (503).
+    MAIL_FROM: str = ""
+    BREVO_API_KEY: str = ""
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
     # Fail closed: the X-Dev-User bypass, seeding and reset need an explicit APP_ENV=dev.
     APP_ENV: str = "production"
 

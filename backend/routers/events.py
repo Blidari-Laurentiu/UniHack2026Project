@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials
 
-from auth import bearer_scheme, current_user, dev_bypass_enabled, dev_user_scheme
+from auth import EmailNotVerified, bearer_scheme, current_user, dev_bypass_enabled, dev_user_scheme
 from db import get_conn
 from schemas.events import Event, Group, GroupMember, Interest, MatchResult, SignupOut
 from services.matching import form_groups
@@ -23,10 +23,16 @@ def optional_user(
     dev_user: str | None = Depends(dev_user_scheme),
     conn=Depends(get_conn),
 ) -> dict | None:
-    """The logged-in user, or None for an anonymous caller. A bad token is still a 401."""
+    """The logged-in user, or None for an anonymous caller. A bad token is still a 401.
+
+    A user whose email is not verified yet browses the public list like an anonymous caller.
+    """
     if creds is None and not (dev_user is not None and dev_bypass_enabled()):
         return None
-    return current_user(creds, dev_user, conn)
+    try:
+        return current_user(creds, dev_user, conn)
+    except EmailNotVerified:
+        return None
 
 
 def _require_event(conn, event_id: UUID, lock: bool = False) -> dict:
