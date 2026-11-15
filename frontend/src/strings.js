@@ -50,16 +50,14 @@ const en = {
   'footer.account': 'Account',
 
   // Home (the landing page)
-  'home.eyebrow': 'Bun venit · Welcome',
+  'home.eyebrow': 'Welcome',
   'home.titleBefore': 'New in ',
-  'home.titleAfter': '? Start here.',
+  'home.titleAfter': ' Start here.',
   'home.lead': 'Check your lease before you sign, and find people to go out with.',
   'home.findGroup': 'Find a group',
-  'home.privacy':
-    'Your CNP, IBAN and ID series are removed from the lease before it is analysed or saved.',
-  'home.caption': 'Timi, new in town. The street lamps have been on since 1884.',
+  'home.caption': 'The street lamps have been on since 1884.',
   'home.art':
-    'Line drawing of a street in Timișoara: cathedral spires, a row of old houses, a tram and a street lamp. Timi, a small house on legs, has just arrived with a suitcase.',
+    'Line drawing of a street in Timișoara: cathedral spires, a row of old houses, a tram and a street lamp.',
   'home.leaseTitle': 'Lease check',
   'home.leaseHeading': 'Know what you are signing',
   'home.leaseText':
@@ -77,11 +75,6 @@ const en = {
   'home.events2': 'Tap “I want to go” on an event',
   'home.events3': 'Get your group, where to meet, and one line on why you match',
   'home.eventsCta': 'Browse events',
-  'home.timiEyebrow': 'Your picture',
-  'home.timiTitle': 'Meet Timi',
-  'home.timiText':
-    'A small house on legs, still looking for its street. Every account starts with a Timi of its own, in two colours picked at random, until you add a photo.',
-  'home.timiCta': 'See yours',
 
   // NotFound
   'notFound.title': 'This street is not on the map',
@@ -154,17 +147,15 @@ const ro = {
   'footer.text': 'Hub nou-veniți Timișoara. Un proiect UniHack, construit în 48 de ore.',
   'footer.account': 'Cont',
 
-  'home.eyebrow': 'Bun venit · Welcome',
+  'home.eyebrow': 'Bun venit',
   'home.titleBefore': 'Nou în ',
-  'home.titleAfter': '? Începe de aici.',
+  'home.titleAfter': ' Începe de aici.',
   'home.lead':
     'Verifică-ți contractul de închiriere înainte să semnezi și găsește oameni cu care să ieși în oraș.',
   'home.findGroup': 'Găsește un grup',
-  'home.privacy':
-    'CNP-ul, IBAN-ul și seria actului de identitate sunt șterse din contract înainte să fie analizat sau salvat.',
-  'home.caption': 'Timi, nou în oraș. Felinarele de pe străzi ard din 1884.',
+  'home.caption': 'Felinarele de pe străzi ard din 1884.',
   'home.art':
-    'Desen în linii al unei străzi din Timișoara: turlele catedralei, un șir de case vechi, un tramvai și un felinar. Timi, o căsuță pe picioare, tocmai a sosit cu o valiză.',
+    'Desen în linii al unei străzi din Timișoara: turlele catedralei, un șir de case vechi, un tramvai și un felinar.',
   'home.leaseTitle': 'Verificare contract',
   'home.leaseHeading': 'Află ce semnezi',
   'home.leaseText':
@@ -182,11 +173,6 @@ const ro = {
   'home.events2': 'Apasă „Vreau să merg” la un eveniment',
   'home.events3': 'Primești grupul, locul de întâlnire și un rând despre ce aveți în comun',
   'home.eventsCta': 'Vezi evenimentele',
-  'home.timiEyebrow': 'Poza ta',
-  'home.timiTitle': 'Fă cunoștință cu Timi',
-  'home.timiText':
-    'O căsuță pe picioare care încă își caută strada. Fiecare cont începe cu propriul Timi, în două culori alese la întâmplare, până adaugi o poză.',
-  'home.timiCta': 'Vezi-l pe al tău',
 
   'notFound.title': 'Strada asta nu e pe hartă',
   'notFound.text': 'Pagina căutată nu există sau a fost mutată.',
