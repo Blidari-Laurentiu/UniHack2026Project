@@ -276,7 +276,6 @@ code {
 /* The tabs: on a phone they share the second row equally, in slightly smaller type. */
 .nav {
   display: flex;
-  gap: 0.125rem;
   order: 3;
   width: 100%;
   overflow-x: auto;
@@ -291,7 +290,7 @@ code {
   align-items: center;
   justify-content: center;
   min-height: 40px;
-  padding: 0.3rem 0.35rem;
+  padding: 0.3rem 0.25rem;
   border-radius: var(--radius-sm);
   color: var(--muted);
   font: 500 0.8rem var(--font-mono);
@@ -478,7 +477,7 @@ code {
     flex-wrap: nowrap;
   }
   .brand {
-    margin-right: 0.5rem;
+    margin-right: 0.25rem;
   }
   .brand-city,
   .user-chip-name {
@@ -491,12 +490,21 @@ code {
     min-width: 0;
     margin-right: auto;
   }
+  .nav-link {
+    padding-inline: 0.6rem;
+  }
   /* The controls sit straight in the row, so the chip can shrink before the tabs do. */
   .auth {
     display: contents;
   }
 }
 @media (min-width: 960px) {
+  .brand {
+    margin-right: 0.5rem;
+  }
+  .nav-link {
+    padding-inline: 0.7rem;
+  }
   .user-chip-name {
     display: block;
   }
