@@ -159,10 +159,12 @@ def test_interests_are_public(client, world):
 def test_new_user_has_empty_profile(client, world):
     world.user = world.new_user("Mei", is_student=True)
     assert client.get("/profile").json() == {
+        "user_id": str(world.user["id"]),
         "display_name": "Mei",
         "is_student": True,
         "interests": [],
         "availability": [],
+        "avatar_url": None,
     }
 
 
@@ -193,6 +195,97 @@ def test_save_profile_rejects_unknown_interest_and_bad_slot(client, world):
     assert r.status_code == 422
     assert client.put("/profile", json={"display_name": "   "}).status_code == 422
 
+
+
+# --- profile picture ---
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x01" * 64
+JPEG = b"\xff\xd8\xff\xe0" + b"\x02" * 64
+
+
+def upload(client, data, name="me.png", content_type="image/png"):
+    return client.put("/profile/avatar", files={"file": (name, data, content_type)})
+
+
+def test_upload_shows_and_replaces_the_picture(client, world):
+    mei = world.new_user("Mei")
+    user_id = mei["id"]
+    world.user = mei
+
+    r = upload(client, PNG)
+    assert r.status_code == 200, r.text
+    first = r.json()["avatar_url"]
+    assert first.startswith(f"/profile/avatar/{user_id}?v=")
+    assert client.get("/profile").json()["avatar_url"] == first
+
+    world.user = None  # the picture itself is public: an <img> tag sends no token
+    r = client.get(first)
+    assert r.status_code == 200
+    assert r.content == PNG
+    assert r.headers["content-type"] == "image/png"
+    assert r.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert r.headers["x-content-type-options"] == "nosniff"
+
+    world.user = mei
+    # A new upload replaces the old one and gets a new URL; the type comes from the bytes.
+    second = upload(client, JPEG, name="evil.html", content_type="text/html").json()["avatar_url"]
+    assert second != first
+    r = client.get(second)
+    assert r.content == JPEG
+    assert r.headers["content-type"] == "image/jpeg"
+    count = world.conn.execute(
+        "select count(*) as n from user_avatars where user_id = %s", (user_id,)
+    ).fetchone()["n"]
+    assert count == 1
+
+
+def test_remove_picture_goes_back_to_the_mascot(client, world):
+    world.user = world.new_user("Mei")
+    url = upload(client, PNG).json()["avatar_url"]
+
+    r = client.delete("/profile/avatar")
+    assert r.status_code == 200
+    assert r.json()["avatar_url"] is None
+    r = client.get(url)
+    assert r.status_code == 404
+    assert r.json() == {"detail": "no profile picture"}
+    assert client.delete("/profile/avatar").status_code == 200  # nothing to remove: still fine
+
+
+def test_refused_upload_keeps_the_old_picture(client, world):
+    world.user = world.new_user("Mei")
+    url = upload(client, PNG).json()["avatar_url"]
+    assert upload(client, b"GIF89a" + b"\x00" * 32).status_code == 415
+    assert client.get("/profile").json()["avatar_url"] == url
+
+
+def test_picture_of_an_unknown_user_is_404(client, world):
+    assert client.get(f"/profile/avatar/{MISSING}").status_code == 404
+    assert client.get("/profile/avatar/not-a-uuid").status_code == 422
+
+
+def test_group_members_show_their_picture(client, world):
+    users = world.waiting_users(3)
+    world.user = users[0]
+    url = upload(client, PNG).json()["avatar_url"]
+
+    members = client.post(f"/events/{world.event_id}/match").json()["groups"][0]["members"]
+    by_id = {m["user_id"]: m["avatar_url"] for m in members}
+    assert by_id[str(users[0]["id"])] == url
+    assert by_id[str(users[1]["id"])] is None  # no picture: the frontend draws the mascot
+
+    mine = client.get(f"/events/{world.event_id}/my-group").json()["members"]
+    assert {m["user_id"]: m["avatar_url"] for m in mine} == by_id
+
+
+def test_deleting_the_user_deletes_the_picture(client, world):
+    world.user = world.new_user("Mei")
+    upload(client, PNG)
+    world.conn.execute("delete from users where id = %s", (world.user["id"],))
+    left = world.conn.execute(
+        "select count(*) as n from user_avatars where user_id = %s", (world.user["id"],)
+    ).fetchone()["n"]
+    assert left == 0
 
 # --- event list ---
 
@@ -299,7 +392,12 @@ def test_match_forms_groups_and_saves_them(client, world):
     mine = client.get(f"{url}/my-group").json()
     assert mine in result["groups"]
     me = next(m for m in mine["members"] if m["user_id"] == str(world.user["id"]))
-    assert me == {"user_id": str(world.user["id"]), "display_name": "Mei", "is_student": True}
+    assert me == {
+        "user_id": str(world.user["id"]),
+        "display_name": "Mei",
+        "is_student": True,
+        "avatar_url": None,
+    }
     assert events(client, world)[0]["my_status"] == "grouped"
     assert all(world.status_of(u) == "grouped" for u in others)
 

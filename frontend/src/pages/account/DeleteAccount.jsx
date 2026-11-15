@@ -70,7 +70,7 @@ export default function DeleteAccount({ account }) {
           </label>
           <ErrorBox error={error} />
           <div className="form-actions">
-            <button className="btn btn-primary" disabled={busy || !confirmed}>
+            <button className="btn btn-danger" disabled={busy || !confirmed}>
               {busy ? t('delete.deleting') : t('delete.submit')}
             </button>
             <button

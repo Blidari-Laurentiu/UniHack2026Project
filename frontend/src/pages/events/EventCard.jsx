@@ -3,6 +3,7 @@ import { getMyGroup, joinEvent, leaveEvent, runMatch } from '../../api.js';
 import { LoginButton } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import GroupCard from './GroupCard.jsx';
+import { dateParts } from './slots.js';
 import { interestLabel, slotLabel, useT } from './strings.js';
 
 const MIN_GROUP = 3;
@@ -62,68 +63,79 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
       }
     });
 
+  const when = dateParts(event.starts_at, t.lang);
+
   return (
     <li className="event">
-      <div className="event-head">
-        <div className="event-main">
-          <strong className="event-title">{event.title}</strong>
-          <span className="muted small">
-            {t.fmt.weekdayTime(event.starts_at)}
-            {event.venue && ` · ${event.venue}`}
+      <time className="event-date" dateTime={event.starts_at}>
+        <span className="event-date-month">{when.month}</span>
+        <span className="event-date-day">{when.day}</span>
+        <span className="event-date-dow">{when.weekday}</span>
+      </time>
+      <div className="event-body">
+        <div className="event-head">
+          <div className="event-main">
+            <strong className="event-title">{event.title}</strong>
+            <span className="muted small">
+              {t.fmt.time(event.starts_at)}
+              {event.venue && ` · ${event.venue}`}
+            </span>
+          </div>
+          <div className="event-tags">
+            {event.interest && <span className="chip">{interestLabel(t, event.interest)}</span>}
+            {event.slot && <span className="chip">{slotLabel(t, event.slot)}</span>}
+          </div>
+        </div>
+
+        {event.description && <p className="event-desc">{event.description}</p>}
+
+        <div className="event-actions">
+          <span className="small muted">
+            {event.signup_count === 0 ? t('firstToGo') : t('wantToGo', event.signup_count)}
           </span>
+
+          {!isAuthenticated && !needsVerification && <LoginButton className="btn btn-sm" />}
+          {needsVerification && <span className="badge badge-warn">{t('verifyToJoin')}</span>}
+
+          {isAuthenticated && (status === null || status === 'left') && (
+            <button className="btn btn-primary" onClick={join} disabled={busy}>
+              {t('join')}
+            </button>
+          )}
+
+          {status === 'waiting' && (
+            <>
+              <span className="badge badge-warn">{t('onList')}</span>
+              {/* Needs myId (from the profile) to tell whether the new groups include this user. */}
+              <button className="btn btn-primary" onClick={match} disabled={busy || !myId}>
+                {busy ? t('matching') : t('findGroup')}
+              </button>
+              <button className="btn" onClick={leave} disabled={busy}>
+                {t('leave')}
+              </button>
+            </>
+          )}
+
+          {status === 'grouped' && (
+            <>
+              <span className="badge badge-ok">{t('hasGroup')}</span>
+              <button className="btn" onClick={leave} disabled={busy}>
+                {t('leaveGroup')}
+              </button>
+            </>
+          )}
         </div>
-        <div className="event-tags">
-          {event.interest && <span className="chip">{interestLabel(t, event.interest)}</span>}
-          {event.slot && <span className="chip">{slotLabel(t, event.slot)}</span>}
-        </div>
+
+        {notice && (
+          <p className="notice">
+            {notice.waiting < MIN_GROUP
+              ? t('notEnough', notice.waiting, MIN_GROUP)
+              : t('noGroupYet')}
+          </p>
+        )}
+        <ErrorBox error={error} />
+        {status === 'grouped' && group && <GroupCard group={group} myId={myId} />}
       </div>
-
-      {event.description && <p className="event-desc">{event.description}</p>}
-
-      <div className="event-actions">
-        <span className="small muted">
-          {event.signup_count === 0 ? t('firstToGo') : t('wantToGo', event.signup_count)}
-        </span>
-
-        {!isAuthenticated && !needsVerification && <LoginButton className="btn btn-sm" />}
-        {needsVerification && <span className="badge badge-warn">{t('verifyToJoin')}</span>}
-
-        {isAuthenticated && (status === null || status === 'left') && (
-          <button className="btn btn-primary" onClick={join} disabled={busy}>
-            {t('join')}
-          </button>
-        )}
-
-        {status === 'waiting' && (
-          <>
-            <span className="badge badge-warn">{t('onList')}</span>
-            {/* Needs myId (from /me) to tell whether the new groups include this user. */}
-            <button className="btn btn-primary" onClick={match} disabled={busy || !myId}>
-              {busy ? t('matching') : t('findGroup')}
-            </button>
-            <button className="btn" onClick={leave} disabled={busy}>
-              {t('leave')}
-            </button>
-          </>
-        )}
-
-        {status === 'grouped' && (
-          <>
-            <span className="badge badge-ok">{t('hasGroup')}</span>
-            <button className="btn" onClick={leave} disabled={busy}>
-              {t('leaveGroup')}
-            </button>
-          </>
-        )}
-      </div>
-
-      {notice && (
-        <p className="notice">
-          {notice.waiting < MIN_GROUP ? t('notEnough', notice.waiting, MIN_GROUP) : t('noGroupYet')}
-        </p>
-      )}
-      <ErrorBox error={error} />
-      {status === 'grouped' && group && <GroupCard group={group} myId={myId} />}
     </li>
   );
 }

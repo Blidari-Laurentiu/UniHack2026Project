@@ -1,4 +1,4 @@
-// Security and Delete account cards on the account page, in English and Romanian.
+// Profile picture, account ids, Security and Delete account on the account page, in English and Romanian.
 // Marks <b> are turned into elements by rich() in i18n.jsx.
 import { createT } from '../../i18n.jsx';
 
@@ -51,6 +51,34 @@ const en = {
   'delete.typeWord': (word) => `Type ${word} to confirm`,
   'delete.deleting': 'Deleting…',
   'delete.submit': 'Delete my account for good',
+  // AvatarEditor
+  'avatar.title': 'Profile picture',
+  'avatar.has': 'People in your group see this picture next to your name.',
+  'avatar.none':
+    'This is your Timi, the mascot every newcomer starts with. Add a photo and your group sees that instead.',
+  'avatar.add': 'Add a picture',
+  'avatar.change': 'Change picture',
+  'avatar.uploading': 'Uploading…',
+  'avatar.remove': 'Remove',
+  'avatar.removing': 'Removing…',
+  'avatar.updated': 'Picture updated.',
+  'avatar.removed': 'Picture removed. You are a Timi again.',
+  // squarePicture.js errors, by key
+  'picture.type': 'Choose a JPEG, PNG or WebP picture.',
+  'picture.big': 'That picture is over 20 MB. Choose a smaller one.',
+  'picture.unreadable': 'That file could not be read as a picture. Try another one.',
+  'picture.prepare': 'That picture could not be prepared. Try another one.',
+
+  // SecretValue (the blurred ids); `label` is the id's name, for screen readers
+  'secret.hidden': 'Hidden.',
+  'secret.show': 'Show',
+  'secret.hide': 'Hide',
+  'secret.copy': 'Copy',
+  'secret.copied': 'Copied',
+  'secret.showLabel': (label) => `Show ${label}`,
+  'secret.hideLabel': (label) => `Hide ${label}`,
+  'secret.copyLabel': (label) => `Copy ${label}`,
+  'secret.copiedStatus': (label) => `Copied ${label}.`,
 };
 
 const ro = {
@@ -102,6 +130,31 @@ const ro = {
   'delete.typeWord': (word) => `Scrie ${word} ca să confirmi`,
   'delete.deleting': 'Se șterge…',
   'delete.submit': 'Șterge-mi contul definitiv',
+  'avatar.title': 'Poza de profil',
+  'avatar.has': 'Cei din grupul tău văd această poză lângă numele tău.',
+  'avatar.none':
+    'Acesta e Timi al tău, mascota cu care începe fiecare nou-venit. Adaugă o poză și grupul tău o va vedea pe ea.',
+  'avatar.add': 'Adaugă o poză',
+  'avatar.change': 'Schimbă poza',
+  'avatar.uploading': 'Se încarcă…',
+  'avatar.remove': 'Șterge',
+  'avatar.removing': 'Se șterge…',
+  'avatar.updated': 'Poza a fost actualizată.',
+  'avatar.removed': 'Poza a fost ștearsă. Ești din nou un Timi.',
+  'picture.type': 'Alege o poză JPEG, PNG sau WebP.',
+  'picture.big': 'Poza are peste 20 MB. Alege una mai mică.',
+  'picture.unreadable': 'Fișierul nu a putut fi citit ca poză. Încearcă altul.',
+  'picture.prepare': 'Poza nu a putut fi pregătită. Încearcă alta.',
+
+  'secret.hidden': 'Ascuns.',
+  'secret.show': 'Arată',
+  'secret.hide': 'Ascunde',
+  'secret.copy': 'Copiază',
+  'secret.copied': 'Copiat',
+  'secret.showLabel': (label) => `Arată ${label}`,
+  'secret.hideLabel': (label) => `Ascunde ${label}`,
+  'secret.copyLabel': (label) => `Copiază ${label}`,
+  'secret.copiedStatus': (label) => `${label}: copiat.`,
 };
 
 export const useT = createT({ en, ro });

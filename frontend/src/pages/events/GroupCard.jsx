@@ -1,3 +1,4 @@
+import Avatar from '../../components/Avatar.jsx';
 import { groupNote, whyYouMatch } from './groupText.js';
 import { useT } from './strings.js';
 
@@ -12,10 +13,8 @@ export default function GroupCard({ group, myId }) {
       <ul className="members">
         {group.members.map((m) => (
           <li key={m.user_id} className="member">
-            <span className="avatar" aria-hidden="true">
-              {(m.display_name || '?').slice(0, 1).toUpperCase()}
-            </span>
-            <span>
+            <Avatar userId={m.user_id} src={m.avatar_url} size={36} />
+            <span className="member-name">
               {m.display_name || t('newcomer')}
               {m.user_id === myId && <span className="muted">{t('you')}</span>}
             </span>

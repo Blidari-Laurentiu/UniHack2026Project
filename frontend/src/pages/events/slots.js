@@ -8,3 +8,17 @@ export const SLOTS = [
   'weekend_afternoon',
   'weekend_evening',
 ];
+
+// Same locales as i18n.jsx: day before month, as in Timișoara.
+const LOCALES = { en: 'en-GB', ro: 'ro-RO' };
+
+/** The date tile on an event card: { month: 'Nov', day: '18', weekday: 'Wed' } in `lang`. */
+export function dateParts(iso, lang) {
+  const date = new Date(iso);
+  const part = (options) => date.toLocaleString(LOCALES[lang] || LOCALES.en, options);
+  return {
+    month: part({ month: 'short' }).replace('.', ''),
+    day: part({ day: 'numeric' }),
+    weekday: part({ weekday: 'short' }).replace('.', ''),
+  };
+}

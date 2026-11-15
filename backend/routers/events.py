@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from auth import EmailNotVerified, bearer_scheme, current_user, dev_bypass_enabled, dev_user_scheme
 from db import get_conn
 from schemas.events import Event, Group, GroupMember, Interest, MatchResult, SignupOut
+from services.avatars import avatar_path
 from services.matching import form_groups
 from services.student import active_sql
 
@@ -97,8 +98,10 @@ def _load_groups(conn, group_ids: list[UUID]) -> list[Group]:
     members: dict[UUID, list[GroupMember]] = {gid: [] for gid in groups}
     for row in conn.execute(
         f"""
-        select gm.group_id, u.id as user_id, u.display_name, {active_sql("u")} as is_student
+        select gm.group_id, u.id as user_id, u.display_name, {active_sql("u")} as is_student,
+               a.updated_at as avatar_updated_at
         from group_members gm join users u on u.id = gm.user_id
+             left join user_avatars a on a.user_id = u.id
         where gm.group_id = any(%s)
         order by u.display_name nulls last, u.id
         """,
@@ -109,6 +112,7 @@ def _load_groups(conn, group_ids: list[UUID]) -> list[Group]:
                 user_id=row["user_id"],
                 display_name=row["display_name"],
                 is_student=bool(row["is_student"]),
+                avatar_url=avatar_path(row["user_id"], row["avatar_updated_at"]),
             )
         )
     return [

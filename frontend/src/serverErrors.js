@@ -57,6 +57,10 @@ const EXACT = {
     'Emailul nu a putut fi trimis acum. Încearcă din nou peste câteva minute.',
   // routers/profile.py
   'display_name must not be empty': 'Prenumele nu poate fi gol.',
+  'the file is empty': 'Fișierul este gol.',
+  'the picture is too large (512 kb at most)': 'Poza este prea mare (cel mult 512 KB).',
+  'use a jpeg, png or webp picture': 'Folosește o poză JPEG, PNG sau WebP.',
+  'no profile picture': 'Nu există o poză de profil.',
   // routers/events.py
   'event not found': 'Evenimentul nu a fost găsit.',
   'this event has already started': 'Evenimentul a început deja.',
