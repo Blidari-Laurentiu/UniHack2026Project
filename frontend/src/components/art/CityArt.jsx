@@ -18,13 +18,14 @@ function Win({ x, y, lit = false, d }) {
   );
 }
 
-export default function CityArt() {
+/** label: the drawing described in words, in the current language (strings.js, home.art). */
+export default function CityArt({ label }) {
   return (
     <svg
       className="art art-draw"
       viewBox="0 0 600 420"
       role="img"
-      aria-label="Line drawing of a street in Timișoara: cathedral spires, a row of old houses, a tram and a street lamp. Timi, a small house on legs, has just arrived with a suitcase."
+      aria-label={label}
     >
       <defs>
         <radialGradient id="city-art-glow">

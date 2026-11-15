@@ -3,14 +3,16 @@ import { getMyGroup, joinEvent, leaveEvent, runMatch } from '../../api.js';
 import { LoginButton } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import GroupCard from './GroupCard.jsx';
-import { dateParts, formatTime, slotLabel } from './slots.js';
+import { dateParts } from './slots.js';
+import { interestLabel, slotLabel, useT } from './strings.js';
 
 const MIN_GROUP = 3;
 
 export default function EventCard({ event, isAuthenticated, needsVerification, myId, onChanged }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(null); // { waiting } after a match without this user
   const [group, setGroup] = useState(null);
 
   const status = isAuthenticated ? event.my_status : null;
@@ -33,7 +35,7 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
   async function act(fn) {
     setBusy(true);
     setError(null);
-    setNotice('');
+    setNotice(null);
     try {
       await fn();
       onChanged();
@@ -47,7 +49,7 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
   const join = () => act(() => joinEvent(event.id));
 
   const leave = () => {
-    if (status === 'grouped' && !window.confirm('Leave your group for this event?')) return;
+    if (status === 'grouped' && !window.confirm(t('confirmLeaveGroup'))) return;
     act(() => leaveEvent(event.id));
   };
 
@@ -56,15 +58,12 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
       const result = await runMatch(event.id);
       const mine = result.groups.some((g) => g.members.some((m) => m.user_id === myId));
       if (!mine) {
-        setNotice(
-          result.unmatched_count < MIN_GROUP
-            ? `Not enough people yet: ${result.unmatched_count} waiting, a group needs ${MIN_GROUP}. Check back soon.`
-            : 'No group for you yet. Try again in a moment.',
-        );
+        // Keep the counts, not the text, so the notice follows the language switch.
+        setNotice({ waiting: result.unmatched_count });
       }
     });
 
-  const when = dateParts(event.starts_at);
+  const when = dateParts(event.starts_at, t.lang);
 
   return (
     <li className="event">
@@ -78,13 +77,13 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
           <div className="event-main">
             <strong className="event-title">{event.title}</strong>
             <span className="muted small">
-              {formatTime(event.starts_at)}
+              {t.fmt.time(event.starts_at)}
               {event.venue && ` · ${event.venue}`}
             </span>
           </div>
           <div className="event-tags">
-            {event.interest && <span className="chip">{event.interest.label}</span>}
-            {event.slot && <span className="chip">{slotLabel(event.slot)}</span>}
+            {event.interest && <span className="chip">{interestLabel(t, event.interest)}</span>}
+            {event.slot && <span className="chip">{slotLabel(t, event.slot)}</span>}
           </div>
         </div>
 
@@ -92,44 +91,48 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
 
         <div className="event-actions">
           <span className="small muted">
-            {event.signup_count === 0
-              ? 'Be the first to go'
-              : `${event.signup_count} ${event.signup_count === 1 ? 'person wants' : 'people want'} to go`}
+            {event.signup_count === 0 ? t('firstToGo') : t('wantToGo', event.signup_count)}
           </span>
 
           {!isAuthenticated && !needsVerification && <LoginButton className="btn btn-sm" />}
-          {needsVerification && <span className="badge badge-warn">Verify your email to join</span>}
+          {needsVerification && <span className="badge badge-warn">{t('verifyToJoin')}</span>}
 
           {isAuthenticated && (status === null || status === 'left') && (
             <button className="btn btn-primary" onClick={join} disabled={busy}>
-              I want to go
+              {t('join')}
             </button>
           )}
 
           {status === 'waiting' && (
             <>
-              <span className="badge badge-warn">On the list</span>
+              <span className="badge badge-warn">{t('onList')}</span>
               {/* Needs myId (from the profile) to tell whether the new groups include this user. */}
               <button className="btn btn-primary" onClick={match} disabled={busy || !myId}>
-                {busy ? 'Matching…' : 'Find my group'}
+                {busy ? t('matching') : t('findGroup')}
               </button>
               <button className="btn" onClick={leave} disabled={busy}>
-                Leave
+                {t('leave')}
               </button>
             </>
           )}
 
           {status === 'grouped' && (
             <>
-              <span className="badge badge-ok">You have a group</span>
+              <span className="badge badge-ok">{t('hasGroup')}</span>
               <button className="btn" onClick={leave} disabled={busy}>
-                Leave group
+                {t('leaveGroup')}
               </button>
             </>
           )}
         </div>
 
-        {notice && <p className="notice">{notice}</p>}
+        {notice && (
+          <p className="notice">
+            {notice.waiting < MIN_GROUP
+              ? t('notEnough', notice.waiting, MIN_GROUP)
+              : t('noGroupYet')}
+          </p>
+        )}
         <ErrorBox error={error} />
         {status === 'grouped' && group && <GroupCard group={group} myId={myId} />}
       </div>

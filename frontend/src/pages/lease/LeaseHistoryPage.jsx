@@ -5,7 +5,7 @@ import useApi from '../../useApi.js';
 import LeaseError from './LeaseError.jsx';
 import { ToneChip } from './LeaseReport.jsx';
 import { VERDICT_TONES, formatters } from './format.js';
-import { LangScope, LangSwitch } from './i18n.jsx';
+import { LangScope } from '../../i18n.jsx';
 import { useT } from './strings.js';
 
 const ALL = '';
@@ -70,12 +70,9 @@ export default function LeaseHistoryPage() {
   return (
     <LangScope>
       <section className="hero">
-        <div className="lease-lang-bar">
-          <p className="small lease-history-page-crumb">
-            <Link to="/lease">{t('history.back')}</Link>
-          </p>
-          <LangSwitch />
-        </div>
+        <p className="small lease-history-page-crumb">
+          <Link to="/lease">{t('history.back')}</Link>
+        </p>
         <h1>{t('history.title')}</h1>
         <p className="lead">{t('history.lead')}</p>
       </section>

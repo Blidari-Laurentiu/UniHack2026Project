@@ -1,5 +1,5 @@
 import { VERDICT_TONES, formatters } from './format.js';
-import { rich } from './i18n.jsx';
+import { rich } from '../../i18n.jsx';
 import { useT } from './strings.js';
 
 export default function PriceBadge({ verdict, rentEur, rooms, neighbourhood }) {

@@ -6,7 +6,9 @@ import {
   startStudentVerification,
 } from '../../api.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
+import { rich } from '../../i18n.jsx';
 import useApi from '../../useApi.js';
+import { useT } from './strings.js';
 
 /** Seconds until `iso` (a date string), never below 0; ticks every second. */
 function useCountdown(iso) {
@@ -25,6 +27,7 @@ function useCountdown(iso) {
  * Step 2: the 6-digit code from that mailbox. Then the user has the student badge.
  */
 export default function StudentVerification({ onChange }) {
+  const t = useT();
   const status = useApi(getStudentStatus);
   const universities = useApi(getUniversities);
   const list = universities.data || [];
@@ -93,50 +96,36 @@ export default function StudentVerification({ onChange }) {
   return (
     <section className="card">
       <h2>
-        Student status {s?.is_student && <span className="badge badge-ok">Verified student</span>}
+        {t('title')}{' '}
+        {s?.is_student && <span className="badge badge-ok">{t('verifiedStudent')}</span>}
       </h2>
-      {status.loading && !s && <p className="muted">Loading…</p>}
+      {status.loading && !s && <p className="muted">{t('loading')}</p>}
       <ErrorBox error={status.error} onRetry={status.reload} />
 
       {s?.is_student && (
         <p>
-          Verified with <b>{s.student_email}</b> at {nameOf(s.university)}
-          {s.verified_at && (
-            <span className="muted"> on {new Date(s.verified_at).toLocaleDateString()}</span>
-          )}
-          .
-          {s.expires_at && (
-            <>
-              {' '}
-              Valid until <b>{new Date(s.expires_at).toLocaleDateString()}</b>, then you confirm
-              your university email again.
-            </>
-          )}
+          {rich(t('verifiedWith', s.student_email, nameOf(s.university)))}
+          {s.verified_at && <span className="muted">{t('verifiedOn', t.fmt.date(s.verified_at))}</span>}
+          .{s.expires_at && <> {rich(t('validUntil', t.fmt.date(s.expires_at)))}</>}
         </p>
       )}
 
       {s?.expired && !pending && (
-        <p role="status">
-          Your student status ended on <b>{new Date(s.expires_at).toLocaleDateString()}</b>. It
-          lasts one year. Confirm your university email again to get the badge back.
-        </p>
+        <p role="status">{rich(t('expired', t.fmt.date(s.expires_at)))}</p>
       )}
 
       {s && !s.is_student && !pending && (
         <form className="form" onSubmit={sendCode}>
-          <p className="muted">
-            Students get a badge on their group card. To get it, confirm your university email: we
-            send it a 6-digit code.
-          </p>
+          <p className="muted">{t('intro')}</p>
           <label className="field">
-            <span className="field-label">Your university</span>
+            <span className="field-label">{t('university')}</span>
             <select
               className="input"
               value={university}
               onChange={(e) => setUniversity(e.target.value)}
               required
             >
-              <option value="">Choose your university</option>
+              <option value="">{t('chooseUniversity')}</option>
               {list.map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.name}
@@ -145,27 +134,27 @@ export default function StudentVerification({ onChange }) {
             </select>
           </label>
           <label className="field">
-            <span className="field-label">Your university email</span>
+            <span className="field-label">{t('email')}</span>
             <input
               className="input"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={chosen ? `name@${chosen.domains[0]}` : 'name@university'}
+              placeholder={t('emailPlaceholder', chosen?.domains[0])}
               autoComplete="email"
               maxLength={254}
               required
             />
             {chosen && (
               <span className="small muted">
-                Must end in {chosen.domains.map((d) => `@${d}`).join(' or ')}.
+                {t('mustEndIn', t.fmt.list(chosen.domains.map((d) => `@${d}`), 'or'))}
               </span>
             )}
           </label>
           <ErrorBox error={error} />
           <div className="form-actions">
             <button className="btn btn-primary" disabled={busy || !university || !email.trim()}>
-              {busy ? 'Sending…' : 'Send me a code'}
+              {busy ? t('sending') : t('sendCode')}
             </button>
             {s.pending && (
               <button
@@ -174,7 +163,7 @@ export default function StudentVerification({ onChange }) {
                 onClick={() => setChanging(false)}
                 disabled={busy}
               >
-                Back to the code
+                {t('backToCode')}
               </button>
             )}
           </div>
@@ -184,16 +173,18 @@ export default function StudentVerification({ onChange }) {
       {s && !s.is_student && pending && (
         <form className="form" onSubmit={confirm}>
           <p>
-            We sent a 6-digit code to <b>{pending.student_email}</b> ({nameOf(pending.university)}).
-            It expires at{' '}
-            {new Date(pending.expires_at).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-            . <span className="muted">Not there? Look in your spam folder.</span>
+            {rich(
+              t(
+                'codeSent',
+                pending.student_email,
+                nameOf(pending.university),
+                t.fmt.time(pending.expires_at),
+              ),
+            )}{' '}
+            <span className="muted">{t('spamHint')}</span>
           </p>
           <label className="field">
-            <span className="field-label">Code</span>
+            <span className="field-label">{t('code')}</span>
             <input
               className="input"
               value={code}
@@ -207,10 +198,10 @@ export default function StudentVerification({ onChange }) {
           <ErrorBox error={error} />
           <div className="form-actions">
             <button className="btn btn-primary" disabled={busy || code.length !== 6}>
-              {busy ? 'Checking…' : 'Confirm'}
+              {busy ? t('checking') : t('confirm')}
             </button>
             <button type="button" className="btn" onClick={resend} disabled={busy || resendIn > 0}>
-              {resendIn > 0 ? `Send a new code (${resendIn}s)` : 'Send a new code'}
+              {resendIn > 0 ? t('resendIn', resendIn) : t('resend')}
             </button>
             <button
               type="button"
@@ -223,7 +214,7 @@ export default function StudentVerification({ onChange }) {
               }}
               disabled={busy}
             >
-              Use another email
+              {t('otherEmail')}
             </button>
           </div>
         </form>

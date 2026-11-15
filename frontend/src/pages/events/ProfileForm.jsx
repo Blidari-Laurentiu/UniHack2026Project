@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { saveProfile } from '../../api.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import { SLOTS } from './slots.js';
+import { interestLabel, slotLabel, useT } from './strings.js';
 
 function toggle(list, value) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -9,6 +10,7 @@ function toggle(list, value) {
 
 /** Name, interests and availability. Calls onSaved(profile) after a successful save. */
 export default function ProfileForm({ profile, interests, defaultName = '', onSaved, onCancel }) {
+  const t = useT();
   const [name, setName] = useState(profile?.display_name || defaultName);
   const [slugs, setSlugs] = useState((profile?.interests || []).map((i) => i.slug));
   const [slots, setSlots] = useState(profile?.availability || []);
@@ -36,19 +38,19 @@ export default function ProfileForm({ profile, interests, defaultName = '', onSa
   return (
     <form className="form" onSubmit={submit}>
       <label className="field">
-        <span className="field-label">Your first name</span>
+        <span className="field-label">{t('firstName')}</span>
         <input
           className="input"
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={64}
           required
-          placeholder="How your group will see you"
+          placeholder={t('firstNamePlaceholder')}
         />
       </label>
 
       <fieldset className="field">
-        <legend className="field-label">What do you like?</legend>
+        <legend className="field-label">{t('likes')}</legend>
         <div className="toggles">
           {interests.map((i) => (
             <label key={i.slug} className="toggle">
@@ -57,23 +59,23 @@ export default function ProfileForm({ profile, interests, defaultName = '', onSa
                 checked={slugs.includes(i.slug)}
                 onChange={() => setSlugs((s) => toggle(s, i.slug))}
               />
-              <span>{i.label}</span>
+              <span>{interestLabel(t, i)}</span>
             </label>
           ))}
         </div>
       </fieldset>
 
       <fieldset className="field">
-        <legend className="field-label">When are you usually free?</legend>
+        <legend className="field-label">{t('free')}</legend>
         <div className="toggles">
           {SLOTS.map((s) => (
-            <label key={s.value} className="toggle">
+            <label key={s} className="toggle">
               <input
                 type="checkbox"
-                checked={slots.includes(s.value)}
-                onChange={() => setSlots((v) => toggle(v, s.value))}
+                checked={slots.includes(s)}
+                onChange={() => setSlots((v) => toggle(v, s))}
               />
-              <span>{s.label}</span>
+              <span>{slotLabel(t, s)}</span>
             </label>
           ))}
         </div>
@@ -82,11 +84,11 @@ export default function ProfileForm({ profile, interests, defaultName = '', onSa
       <ErrorBox error={error} />
       <div className="form-actions">
         <button className="btn btn-primary" disabled={saving || !name.trim()}>
-          {saving ? 'Saving…' : 'Save profile'}
+          {saving ? t('saving') : t('saveProfile')}
         </button>
         {onCancel && (
           <button type="button" className="btn" onClick={onCancel} disabled={saving}>
-            Cancel
+            {t('cancel')}
           </button>
         )}
       </div>

@@ -3,19 +3,10 @@
 // <mark> are turned into elements by rich() in i18n.jsx. SQL, JSON, neighbourhood names and
 // quotes from the lease are not translated; neither is a saved report (it keeps the language
 // it was written in).
-import { createT } from './i18n.jsx';
+import { createT, enCount, roCount } from '../../i18n.jsx';
 
 const en0 = new Intl.NumberFormat('en-IE');
 const ro0 = new Intl.NumberFormat('ro-RO');
-
-const enCount = (n, one, many) => `${en0.format(n)} ${n === 1 ? one : many}`;
-/** Romanian counts: 1 anunț, 2 anunțuri, 19 anunțuri, 20 de anunțuri, 101 anunțuri, 120 de anunțuri. */
-function roCount(n, one, many) {
-  if (n === 1) return `1 ${one}`;
-  const lastTwo = n % 100;
-  const de = n !== 0 && (lastTwo === 0 || lastTwo >= 20) ? 'de ' : '';
-  return `${ro0.format(n)} ${de}${many}`;
-}
 
 const en = {
   // Shared pieces

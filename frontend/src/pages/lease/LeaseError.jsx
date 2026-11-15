@@ -7,7 +7,7 @@ import { errorMessage, useT } from './strings.js';
 export default function LeaseError({ error, onRetry, kind }) {
   const t = useT();
   if (!error) return null;
-  // Same as ErrorBox: an unverified account gets the shared notice (auth code, in English).
+  // Same as ErrorBox: an unverified account gets the shared notice.
   if (error.status === 403 && error.message === EMAIL_NOT_VERIFIED) return <VerifyEmailNotice />;
   return (
     <div className="alert" role="alert">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useT } from '../strings.js';
 import { MoonIcon, SunIcon } from './Icon.jsx';
 
 // Light or dark. The choice is kept in this browser; until someone chooses, the page follows
@@ -15,6 +16,7 @@ function stored() {
 }
 
 export default function ThemeToggle() {
+  const t = useT();
   const [theme, setTheme] = useState(() =>
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
   );
@@ -51,8 +53,8 @@ export default function ThemeToggle() {
       type="button"
       className="icon-btn theme-toggle"
       onClick={toggle}
-      aria-label={`Switch to ${next} theme`}
-      title={`Switch to ${next} theme`}
+      aria-label={t(`theme.${next}`)}
+      title={t(`theme.${next}`)}
     >
       <SunIcon className="icon-sun" />
       <MoonIcon className="icon-moon" />

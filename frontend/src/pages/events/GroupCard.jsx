@@ -1,28 +1,31 @@
 import Avatar from '../../components/Avatar.jsx';
-import { formatWhen } from './slots.js';
+import { groupNote, whyYouMatch } from './groupText.js';
+import { useT } from './strings.js';
 
 /** The user's group for one event: why they match, where to meet, who is in it. */
 export default function GroupCard({ group, myId }) {
+  const t = useT();
+  const note = groupNote(t, group.note);
   return (
     <div className="group-card">
-      <h3>Your group</h3>
-      <p className="why">{group.why_you_match}</p>
+      <h3>{t('yourGroup')}</h3>
+      <p className="why">{whyYouMatch(t, group.why_you_match)}</p>
       <ul className="members">
         {group.members.map((m) => (
           <li key={m.user_id} className="member">
             <Avatar userId={m.user_id} src={m.avatar_url} size={36} />
             <span className="member-name">
-              {m.display_name || 'Newcomer'}
-              {m.user_id === myId && <span className="muted"> (you)</span>}
+              {m.display_name || t('newcomer')}
+              {m.user_id === myId && <span className="muted">{t('you')}</span>}
             </span>
-            {m.is_student && <span className="badge badge-ok">Student</span>}
+            {m.is_student && <span className="badge badge-ok">{t('student')}</span>}
           </li>
         ))}
       </ul>
-      {(group.meet_at || group.note) && (
+      {(group.meet_at || note) && (
         <p className="small muted">
-          {group.meet_at && <>Meet {formatWhen(group.meet_at)}. </>}
-          {group.note}
+          {group.meet_at && <>{t('meet', t.fmt.weekdayTime(group.meet_at))} </>}
+          {note}
         </p>
       )}
     </div>

@@ -4,16 +4,18 @@ import ErrorBox from '../../components/ErrorBox.jsx';
 import { UploadIcon } from '../../components/Icon.jsx';
 import { useProfile } from '../../profile/ProfileContext.jsx';
 import { PICTURE_TYPES, squarePicture } from './squarePicture.js';
+import { useT } from './strings.js';
 
 /**
  * Add, change or remove the profile picture. Without one the user is shown as their Timi.
  * The new profile goes into the shared profile state, so the top bar updates at once.
  */
 export default function AvatarEditor() {
+  const t = useT();
   const { profile, setProfile } = useProfile();
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
-  const [done, setDone] = useState('');
+  const [done, setDone] = useState(''); // a strings.js key, so it follows the language
 
   if (!profile) return null;
   const hasPicture = Boolean(profile.avatar_url);
@@ -37,27 +39,27 @@ export default function AvatarEditor() {
     const file = e.target.files?.[0];
     e.target.value = ''; // picking the same file again must fire a change too
     if (!file) return;
-    run('upload', async () => uploadAvatar(await squarePicture(file)), 'Picture updated.');
+    run('upload', async () => uploadAvatar(await squarePicture(file)), 'avatar.updated');
   };
 
-  const remove = () => run('remove', deleteAvatar, 'Picture removed. You are a Timi again.');
+  const remove = () => run('remove', deleteAvatar, 'avatar.removed');
 
   return (
     <div className="avatar-editor">
       <div className="avatar-editor-text">
         <h3 className="field-label" id="avatar-editor-title">
-          Profile picture
+          {t('avatar.title')}
         </h3>
         <p className="muted small">
-          {hasPicture
-            ? 'People in your group see this picture next to your name.'
-            : 'This is your Timi, the mascot every newcomer starts with. Add a photo and your group sees that instead.'}
+          {hasPicture ? t('avatar.has') : t('avatar.none')}
         </p>
       </div>
       <div className="form-actions">
         <label className="btn file-btn" aria-disabled={Boolean(busy)}>
           <UploadIcon />
-          {busy === 'upload' ? 'Uploading…' : hasPicture ? 'Change picture' : 'Add a picture'}
+          {busy === 'upload'
+            ? t('avatar.uploading')
+            : t(hasPicture ? 'avatar.change' : 'avatar.add')}
           <input
             type="file"
             accept={PICTURE_TYPES}
@@ -68,14 +70,17 @@ export default function AvatarEditor() {
         </label>
         {hasPicture && (
           <button type="button" className="btn" onClick={remove} disabled={Boolean(busy)}>
-            {busy === 'remove' ? 'Removing…' : 'Remove'}
+            {busy === 'remove' ? t('avatar.removing') : t('avatar.remove')}
           </button>
         )}
       </div>
       <p className="sr-only" role="status">
-        {done}
+        {done && t(done)}
       </p>
-      <ErrorBox error={error} />
+      {/* A picture that could not be prepared here: its text is ours, in the current language. */}
+      <ErrorBox
+        error={error?.pictureKey ? { message: t(`picture.${error.pictureKey}`) } : error}
+      />
     </div>
   );
 }

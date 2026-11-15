@@ -3,6 +3,7 @@ import { LogoutButton, useAuth } from '../auth/index.js';
 import Avatar from '../components/Avatar.jsx';
 import ErrorBox from '../components/ErrorBox.jsx';
 import { useProfile } from '../profile/ProfileContext.jsx';
+import { useT } from '../strings.js';
 import useApi from '../useApi.js';
 import AvatarEditor from './account/AvatarEditor.jsx';
 import DeleteAccount from './account/DeleteAccount.jsx';
@@ -12,6 +13,7 @@ import ProfilePanel from './events/ProfilePanel.jsx';
 import StudentVerification from './student/StudentVerification.jsx';
 
 export default function Me() {
+  const t = useT();
   const { user: authUser } = useAuth();
   const { data: me, error, loading, reload } = useApi(getMe);
   const { profile } = useProfile();
@@ -26,46 +28,47 @@ export default function Me() {
         <div className="account-head">
           {me && <Avatar userId={me.id} src={profile?.avatar_url} size={88} />}
           <div className="account-head-text">
-            <h1>{name || 'Your account'}</h1>
+            <h1>{name || t('me.title')}</h1>
             {me && (
               <p className="muted">
-                {me.email || 'No email address shared with us'}{' '}
-                {me.is_student && <span className="badge badge-ok">Verified student</span>}
+                {me.email || t('me.noEmail')}{' '}
+                {me.is_student && <span className="badge badge-ok">{t('me.verifiedStudent')}</span>}
               </p>
             )}
           </div>
           <LogoutButton className="btn btn-sm" />
         </div>
-        {loading && <p className="muted">Loading…</p>}
+        {loading && <p className="muted">{t('loading')}</p>}
         <ErrorBox error={error} onRetry={reload} />
         {me && <AvatarEditor />}
 
         {me && (
           <>
-            <h2>Account details</h2>
+            <h2>{t('me.details')}</h2>
             <dl className="kv">
-              <dt>Student</dt>
-              <dd>{me.is_student ? 'yes' : 'no'}</dd>
-              <dt>Roles</dt>
-              <dd>{me.roles?.length ? me.roles.join(', ') : 'none'}</dd>
-              <dt>Joined</dt>
-              <dd>{me.created_at ? new Date(me.created_at).toLocaleString() : '—'}</dd>
+              <dt>{t('me.student')}</dt>
+              <dd>{me.is_student ? t('me.yes') : t('me.no')}</dd>
+              <dt>{t('me.roles')}</dt>
+              <dd>
+                {me.roles?.length
+                  ? me.roles.map((role) => t.opt(`role.${role}`) ?? role).join(', ')
+                  : t('me.noRoles')}
+              </dd>
+              <dt>{t('me.joined')}</dt>
+              <dd>{me.created_at ? t.fmt.dateTime(me.created_at) : '—'}</dd>
             </dl>
 
             {/* Nobody needs these day to day; support may ask for one when something is wrong. */}
-            <h3>Account ids</h3>
-            <p className="muted small">
-              Only needed if we ask for one to look into a problem. They stay blurred so they do
-              not end up in a screenshot or on a shared screen.
-            </p>
+            <h3>{t('me.idsTitle')}</h3>
+            <p className="muted small">{t('me.idsText')}</p>
             <dl className="kv">
-              <dt>User id</dt>
+              <dt>{t('me.userId')}</dt>
               <dd>
-                <SecretValue value={me.id} label="user id" />
+                <SecretValue value={me.id} label={t('me.userId')} />
               </dd>
-              <dt>Login id</dt>
+              <dt>{t('me.auth0Id')}</dt>
               <dd>
-                <SecretValue value={me.auth0_sub} label="login id" />
+                <SecretValue value={me.auth0_sub} label={t('me.auth0Id')} />
               </dd>
             </dl>
           </>

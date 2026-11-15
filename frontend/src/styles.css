@@ -327,6 +327,42 @@ code {
 :root[data-theme='dark'] .theme-toggle .icon-sun {
   display: block;
 }
+/* EN / RO switch (i18n.jsx): a two-key segmented control, the chosen language in amber. */
+.lang-switch {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.lang-switch-btn {
+  min-height: 36px;
+  min-width: 2.4rem;
+  padding: 0.2rem 0.5rem;
+  border: 0;
+  border-left: 1px solid var(--edge);
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 0.78rem/1 var(--font-mono);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.lang-switch-btn:first-child {
+  border-left: 0;
+}
+.lang-switch-btn:hover {
+  background: var(--tint);
+  color: var(--text);
+}
+.lang-switch-btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.lang-switch-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
 .user-chip {
   display: inline-flex;
   align-items: center;
@@ -360,7 +396,8 @@ code {
     height: 44px;
   }
   .nav-link,
-  .user-chip {
+  .user-chip,
+  .lang-switch-btn {
     min-height: 44px;
   }
 }
@@ -817,9 +854,13 @@ code {
   font-weight: 800;
   line-height: 1.04;
   letter-spacing: -0.055em;
+  isolation: isolate;
 }
-/* A street-sign plate around a word: amber, outlined, slightly tilted. */
+/* A street-sign plate around a word: amber, outlined, slightly tilted. It sits behind the
+   heading's other lines, so an accent on the line below (Î in "Începe") stays visible. */
 .plate {
+  position: relative;
+  z-index: -1;
   display: inline-block;
   padding: 0 0.16em 0.04em;
   border: 0.045em solid var(--accent-edge);
@@ -1398,18 +1439,6 @@ code {
 }
 .lease-fieldset:disabled {
   opacity: 0.6;
-}
-/* EN / RO switch (i18n.jsx), on the right; on the history pages it shares the row with the back link. */
-.lease-lang-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem 1rem;
-  margin-bottom: 0.5rem;
-}
-.lease-lang-bar .lease-history-page-crumb {
-  margin: 0 auto 0 0;
 }
 /* A long chip (Romanian labels are longer) may wrap instead of overflowing on a phone. */
 .lease-chip-wrap {

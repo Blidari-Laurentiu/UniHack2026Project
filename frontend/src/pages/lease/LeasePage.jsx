@@ -10,7 +10,7 @@ import LeaseError from './LeaseError.jsx';
 import LeaseForm, { EMPTY_FORM } from './LeaseForm.jsx';
 import MedianChart from './MedianChart.jsx';
 import TrendChart from './TrendChart.jsx';
-import { LangScope, LangSwitch } from './i18n.jsx';
+import { LangScope } from '../../i18n.jsx';
 import { useT } from './strings.js';
 
 function useElapsedSeconds(running) {
@@ -98,19 +98,13 @@ export default function LeasePage() {
   return (
     <LangScope>
       <section className="hero">
-        <div className="lease-lang-bar">
-          <LangSwitch />
-        </div>
         <h1>{t('page.title')}</h1>
         <p className="lead">{t('page.lead')}</p>
       </section>
 
       <section className="card">
         <h2>{t('page.yourLease')}</h2>
-        {/* The verify-email notice belongs to the shared auth code and stays in English. */}
-        {!authLoading && isAuthenticated && !canUse && (
-          <VerifyEmailNotice action="check a lease and keep your past checks" />
-        )}
+        {!authLoading && isAuthenticated && !canUse && <VerifyEmailNotice action="checkLease" />}
         {!authLoading && !isAuthenticated && (
           <div className="lease-login">
             <span>{t('page.loginPrompt')}</span>

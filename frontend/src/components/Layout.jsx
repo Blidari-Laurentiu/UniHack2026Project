@@ -1,11 +1,15 @@
+import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useMatch } from 'react-router-dom';
 import { LoginButton, LogoutButton, useAuth } from '../auth/index.js';
+import { LangSwitch } from '../i18n.jsx';
 import { useProfile } from '../profile/ProfileContext.jsx';
+import { useT } from '../strings.js';
 import Avatar from './Avatar.jsx';
 import { TimiMark } from './Mascot.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 
 function AuthControls() {
+  const t = useT();
   const { isLoading, isAuthenticated, user, mode } = useAuth();
   const { profile, loading } = useProfile();
   if (isLoading) return <span className="muted small">…</span>;
@@ -14,48 +18,60 @@ function AuthControls() {
   // The picture and first name link to the account page; the email address is never put in
   // the top bar. An account that still has to verify its email has no profile: its Timi
   // comes from the login id instead.
-  const name = profile?.display_name || (mode === 'dev' ? user.name : 'Account');
+  const name = profile?.display_name || (mode === 'dev' ? user.name : t('account.fallback'));
   const seed = profile?.user_id || (loading ? null : user?.sub || user?.name);
   return (
     <>
       <NavLink
         to="/me"
         className={({ isActive }) => (isActive ? 'user-chip active' : 'user-chip')}
-        aria-label={`Your account: ${name}`}
+        aria-label={t('account.label', name)}
       >
         <Avatar userId={seed} src={profile?.avatar_url} size={32} />
         <span className="user-chip-name">{name}</span>
       </NavLink>
-      {mode === 'dev' && <span className="badge badge-warn">dev</span>}
+      {mode === 'dev' && (
+        <span className="badge badge-warn" title={t('auth.dev', user.name)}>
+          dev
+        </span>
+      )}
       <LogoutButton className="btn btn-sm" />
     </>
   );
 }
 
 export default function Layout() {
+  const t = useT();
   const link = ({ isActive }) => (isActive ? 'nav-link active' : 'nav-link');
   const landing = useMatch('/');
+
+  const title = t('title');
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
+
   return (
     <>
       <a className="skip-link" href="#main">
-        Skip to content
+        {t('skip')}
       </a>
       <header className="topbar">
         <div className="container topbar-inner">
-          <NavLink to="/" className="brand" aria-label="Timișoara Newcomer Hub, home">
+          <NavLink to="/" className="brand" aria-label={t('brand.home')}>
             <TimiMark className="brand-mark" />
-            <span>Newcomer Hub</span>
+            <span>{t('brand')}</span>
             <span className="brand-city">Timișoara</span>
           </NavLink>
-          <nav className="nav" aria-label="Main">
+          <nav className="nav" aria-label={t('nav.label')}>
             <NavLink to="/lease" className={link}>
-              Lease check
+              {t('nav.lease')}
             </NavLink>
             <NavLink to="/events" className={link}>
-              Events
+              {t('nav.events')}
             </NavLink>
           </nav>
           <div className="auth">
+            <LangSwitch />
             <ThemeToggle />
             <AuthControls />
           </div>
@@ -66,11 +82,11 @@ export default function Layout() {
       </main>
       <footer className="footer">
         <div className="container footer-inner">
-          <p>Timișoara Newcomer Hub. A UniHack project, built in 48 hours.</p>
+          <p>{t('footer.text')}</p>
           <p className="footer-links">
-            <Link to="/lease">Lease check</Link>
-            <Link to="/events">Events</Link>
-            <Link to="/me">Account</Link>
+            <Link to="/lease">{t('nav.lease')}</Link>
+            <Link to="/events">{t('nav.events')}</Link>
+            <Link to="/me">{t('footer.account')}</Link>
           </p>
         </div>
       </footer>

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { CopyIcon, EyeIcon, EyeOffIcon } from '../../components/Icon.jsx';
+import { useT } from './strings.js';
 
 /**
  * An id the user rarely needs (their user id, their login id): blurred until they ask for
  * it, so it stays off screenshots and shared screens. Copy works without showing it.
- * `label` names the value for screen readers, for example "user id".
+ * `label` names the value for screen readers, in the current language, for example "User id".
  */
 export default function SecretValue({ value, label }) {
+  const t = useT();
   const [shown, setShown] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -31,25 +33,25 @@ export default function SecretValue({ value, label }) {
       <code className="secret-value" data-hidden={!shown} aria-hidden={!shown}>
         {value}
       </code>
-      {!shown && <span className="sr-only">Hidden.</span>}
+      {!shown && <span className="sr-only">{t('secret.hidden')}</span>}
       <span className="secret-actions">
         <button
           type="button"
           className="btn btn-sm"
           onClick={() => setShown((s) => !s)}
           aria-pressed={shown}
-          aria-label={`${shown ? 'Hide' : 'Show'} ${label}`}
+          aria-label={t(shown ? 'secret.hideLabel' : 'secret.showLabel', label)}
         >
           {shown ? <EyeOffIcon /> : <EyeIcon />}
-          {shown ? 'Hide' : 'Show'}
+          {shown ? t('secret.hide') : t('secret.show')}
         </button>
-        <button type="button" className="btn btn-sm" onClick={copy} aria-label={`Copy ${label}`}>
+        <button type="button" className="btn btn-sm" onClick={copy} aria-label={t('secret.copyLabel', label)}>
           <CopyIcon />
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? t('secret.copied') : t('secret.copy')}
         </button>
       </span>
       <span className="sr-only" role="status">
-        {copied ? `Copied ${label}.` : ''}
+        {copied ? t('secret.copiedStatus', label) : ''}
       </span>
     </span>
   );

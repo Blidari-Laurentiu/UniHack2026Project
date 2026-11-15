@@ -7,6 +7,7 @@ import { useProfile } from '../../profile/ProfileContext.jsx';
 import useApi from '../../useApi.js';
 import EventCard from './EventCard.jsx';
 import ProfilePanel from './ProfilePanel.jsx';
+import { interestLabel, useT } from './strings.js';
 
 // Date inputs give YYYY-MM-DD in local time; the API wants full ISO datetimes.
 function toQuery({ interest, from, to }) {
@@ -18,6 +19,7 @@ function toQuery({ interest, from, to }) {
 }
 
 export default function EventsPage() {
+  const t = useT();
   const { isAuthenticated, canUse, user: authUser } = useAuth();
   const [filters, setFilters] = useState({ interest: '', from: '', to: '' });
   const setFilter = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.value }));
@@ -34,16 +36,13 @@ export default function EventsPage() {
   return (
     <>
       <section className="hero">
-        <h1>Events</h1>
-        <p className="lead">
-          Pick an event. We put you in a group of 3 to 5 people with similar interests, so you
-          never have to go alone.
-        </p>
+        <h1>{t('title')}</h1>
+        <p className="lead">{t('lead')}</p>
       </section>
 
       {isAuthenticated && !canUse && (
         <section className="card">
-          <VerifyEmailNotice action="join events and get matched into a group" />
+          <VerifyEmailNotice action="joinEvents" />
         </section>
       )}
 
@@ -56,22 +55,22 @@ export default function EventsPage() {
       <section className="card">
         <div className="filters">
           <label className="field">
-            <span className="field-label">Interest</span>
+            <span className="field-label">{t('filter.interest')}</span>
             <select className="input" value={filters.interest} onChange={setFilter('interest')}>
-              <option value="">All interests</option>
+              <option value="">{t('filter.allInterests')}</option>
               {(interests.data || []).map((i) => (
                 <option key={i.slug} value={i.slug}>
-                  {i.label}
+                  {interestLabel(t, i)}
                 </option>
               ))}
             </select>
           </label>
           <label className="field">
-            <span className="field-label">From</span>
+            <span className="field-label">{t('filter.from')}</span>
             <input className="input" type="date" value={filters.from} onChange={setFilter('from')} />
           </label>
           <label className="field">
-            <span className="field-label">To</span>
+            <span className="field-label">{t('filter.to')}</span>
             <input
               className="input"
               type="date"
@@ -81,18 +80,22 @@ export default function EventsPage() {
             />
           </label>
           {hasFilters && (
-            <button className="btn btn-sm" onClick={() => setFilters({ interest: '', from: '', to: '' })}>
-              Clear
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setFilters({ interest: '', from: '', to: '' })}
+            >
+              {t('filter.clear')}
             </button>
           )}
         </div>
 
         <ErrorBox error={interests.error} onRetry={interests.reload} />
         <ErrorBox error={events.error} onRetry={events.reload} />
-        {events.loading && list.length === 0 && <p className="muted">Loading events…</p>}
+        {events.loading && list.length === 0 && <p className="muted">{t('loadingEvents')}</p>}
         {!events.loading && !events.error && list.length === 0 && (
           <p className="muted">
-            {hasFilters ? 'No events match these filters.' : 'No upcoming events.'}
+            {hasFilters ? t('noMatch') : t('noEvents')}
           </p>
         )}
 
@@ -108,7 +111,7 @@ export default function EventsPage() {
             />
           ))}
         </ul>
-        {list.length > 0 && <p className="small muted">Sample events for the demo.</p>}
+        {list.length > 0 && <p className="small muted">{t('sample')}</p>}
       </section>
     </>
   );

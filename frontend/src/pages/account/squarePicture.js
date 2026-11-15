@@ -31,20 +31,27 @@ const encode = (canvas, type) =>
     canvas.toBlob(resolve, type, 0.86);
   });
 
-/** file: what the user picked. Returns a Blob to upload; throws an Error with a message to show. */
+/** An error to show the user; `key` picks its text in pages/account/strings.js (picture.<key>). */
+function pictureError(key) {
+  const error = new Error(`picture.${key}`);
+  error.pictureKey = key;
+  return error;
+}
+
+/** file: what the user picked. Returns a Blob to upload; throws pictureError(key) when it cannot. */
 export async function squarePicture(file) {
   if (!PICTURE_TYPES.split(',').includes(file.type)) {
-    throw new Error('Choose a JPEG, PNG or WebP picture.');
+    throw pictureError('type');
   }
   if (file.size > MAX_SOURCE_BYTES) {
-    throw new Error('That picture is over 20 MB. Choose a smaller one.');
+    throw pictureError('big');
   }
 
   let source;
   try {
     source = await decode(file);
   } catch {
-    throw new Error('That file could not be read as a picture. Try another one.');
+    throw pictureError('unreadable');
   }
   const width = source.width || source.naturalWidth;
   const height = source.height || source.naturalHeight;
@@ -63,6 +70,6 @@ export async function squarePicture(file) {
   let blob = await encode(canvas, 'image/webp');
   // A browser that cannot write WebP hands back a PNG instead: ask for JPEG then.
   if (!blob || blob.type !== 'image/webp') blob = await encode(canvas, 'image/jpeg');
-  if (!blob) throw new Error('That picture could not be prepared. Try another one.');
+  if (!blob) throw pictureError('prepare');
   return blob;
 }

@@ -3,7 +3,7 @@ import Avatar from '../../components/Avatar.jsx';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import { useProfile } from '../../profile/ProfileContext.jsx';
 import ProfileForm from './ProfileForm.jsx';
-import { slotLabel } from './slots.js';
+import { interestLabel, slotLabel, useT } from './strings.js';
 
 /**
  * The user's profile (name, interests, free time): a summary with an Edit button, or the
@@ -12,10 +12,11 @@ import { slotLabel } from './slots.js';
  * optional. The profile itself lives in the shared profile state.
  */
 export default function ProfilePanel({ interests, authUser, onSaved, account = false }) {
+  const t = useT();
   const { profile: current, loading, error, reload, setProfile } = useProfile();
   const [editing, setEditing] = useState(false);
 
-  if (loading && !current) return <p className="muted">Loading your profile…</p>;
+  if (loading && !current) return <p className="muted">{t('loadingProfile')}</p>;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   if (!current) return null;
 
@@ -23,10 +24,8 @@ export default function ProfilePanel({ interests, authUser, onSaved, account = f
   if (editing || incomplete) {
     return (
       <>
-        <h2>{incomplete ? 'Tell us what you like' : 'Your profile'}</h2>
-        {incomplete && (
-          <p className="muted">We use this to put you in a group with people like you.</p>
-        )}
+        <h2>{incomplete ? t('tellUs') : t('yourProfile')}</h2>
+        {incomplete && <p className="muted">{t('whyAsk')}</p>}
         <ProfileForm
           profile={current}
           interests={interests}
@@ -46,12 +45,12 @@ export default function ProfilePanel({ interests, authUser, onSaved, account = f
     <ul className="chips">
       {current.interests.map((i) => (
         <li key={i.slug} className="chip">
-          {i.label}
+          {interestLabel(t, i)}
         </li>
       ))}
       {current.availability.map((s) => (
         <li key={s} className="chip chip-soft">
-          {slotLabel(s)}
+          {slotLabel(t, s)}
         </li>
       ))}
     </ul>
@@ -61,7 +60,7 @@ export default function ProfilePanel({ interests, authUser, onSaved, account = f
     <div className="profile-summary">
       {account ? (
         <div>
-          <h2>Interests and free time</h2>
+          <h2>{t('interestsTitle')}</h2>
           {chips}
         </div>
       ) : (
@@ -69,13 +68,13 @@ export default function ProfilePanel({ interests, authUser, onSaved, account = f
           <Avatar userId={current.user_id} src={current.avatar_url} size={44} />
           <div>
             <strong className="profile-summary-name">{current.display_name}</strong>{' '}
-            {current.is_student && <span className="badge badge-ok">Verified student</span>}
+            {current.is_student && <span className="badge badge-ok">{t('verifiedStudent')}</span>}
             {chips}
           </div>
         </div>
       )}
-      <button className="btn btn-sm" onClick={() => setEditing(true)}>
-        Edit profile
+      <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
+        {t('editProfile')}
       </button>
     </div>
   );

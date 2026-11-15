@@ -1,35 +1,24 @@
 // Availability slots, in the order used everywhere (same as backend/schemas/common.py).
+// The label of each one is slotLabel(t, slot) from strings.js, in the current language;
+// event and meeting times use t.fmt.weekdayTime(iso) from i18n.jsx.
 export const SLOTS = [
-  { value: 'weekday_morning', label: 'Weekday mornings' },
-  { value: 'weekday_evening', label: 'Weekday evenings' },
-  { value: 'weekend_morning', label: 'Weekend mornings' },
-  { value: 'weekend_afternoon', label: 'Weekend afternoons' },
-  { value: 'weekend_evening', label: 'Weekend evenings' },
+  'weekday_morning',
+  'weekday_evening',
+  'weekend_morning',
+  'weekend_afternoon',
+  'weekend_evening',
 ];
 
-export const slotLabel = (value) => SLOTS.find((s) => s.value === value)?.label || value;
+// Same locales as i18n.jsx: day before month, as in Timișoara.
+const LOCALES = { en: 'en-GB', ro: 'ro-RO' };
 
-export function formatWhen(iso) {
-  return new Date(iso).toLocaleString(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-/** { month: 'Nov', day: '18', weekday: 'Wed' } in the browser's language, for the date tile. */
-export function dateParts(iso) {
+/** The date tile on an event card: { month: 'Nov', day: '18', weekday: 'Wed' } in `lang`. */
+export function dateParts(iso, lang) {
   const date = new Date(iso);
-  const part = (options) => date.toLocaleString(undefined, options);
+  const part = (options) => date.toLocaleString(LOCALES[lang] || LOCALES.en, options);
   return {
-    month: part({ month: 'short' }),
+    month: part({ month: 'short' }).replace('.', ''),
     day: part({ day: 'numeric' }),
-    weekday: part({ weekday: 'short' }),
+    weekday: part({ weekday: 'short' }).replace('.', ''),
   };
-}
-
-export function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
