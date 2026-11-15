@@ -187,7 +187,7 @@ An unknown event id gives 404 `{"detail": "event not found"}`.
   "meet_at": "2026-11-18T18:30:00+02:00",
   "note": "Meet at the entrance 30 minutes before.",
   "members": [
-    {"user_id": "c100…02", "display_name": "Andrei", "is_student": true}
+    {"user_id": "c100…02", "display_name": "Andrei", "is_student": true, "avatar_url": null}
   ],
   "why_you_match": "You all like board games and live music, and are free on weekday evenings."
 }
@@ -200,16 +200,24 @@ An unknown event id gives 404 `{"detail": "event not found"}`.
 | GET | `/profile/interests` | Public | – | `[{"id": "b100…01", "slug": "theatre", "label": "Theatre"}, ...]` | B |
 | GET | `/profile` | JWT | – | `ProfileOut` (below) | B |
 | PUT | `/profile` | JWT | `{"display_name": "Mei", "interest_slugs": ["board_games", "theatre"], "availability": ["weekday_evening"]}` | `ProfileOut`; 422 `{"detail": "unknown interest: x"}` | B |
+| PUT | `/profile/avatar` | JWT | `multipart/form-data` with one field, `file`: a JPEG, PNG or WebP picture, at most 512 KB | `ProfileOut` with the new `avatar_url` | B |
+| DELETE | `/profile/avatar` | JWT | – | `ProfileOut` with `"avatar_url": null` (also when there was no picture) | B |
+| GET | `/profile/avatar/{user_id}` | Public | – | The picture itself (`image/jpeg`, `image/png` or `image/webp`); 404 `{"detail": "no profile picture"}` | B |
 
 `ProfileOut`:
 
 ```json
 {
+  "user_id": "c1000000-0000-4000-8000-000000000001",
   "display_name": "Mei",
   "is_student": true,
   "interests": [{"id": "b100…03", "slug": "board_games", "label": "Board games"}],
-  "availability": ["weekday_evening", "weekend_afternoon"]
+  "availability": ["weekday_evening", "weekend_afternoon"],
+  "avatar_url": "/profile/avatar/c1000000-0000-4000-8000-000000000001?v=1794736800001"
 }
 ```
+
+- **Profile picture.** `avatar_url` (in `ProfileOut` and in every group member) is a path on this API, or `null` when the user has no picture; the frontend then draws the mascot from `user_id`. The frontend crops and resizes a picture to 256 px before `PUT /profile/avatar`. The server reads the type from the file's first bytes, never from the upload's header: 413 `the picture is too large (512 KB at most)`, 415 `use a JPEG, PNG or WebP picture`, 422 `the file is empty`. A new upload replaces the old picture.
+- **Reading a picture** needs no token, because an `<img>` tag cannot send one: anyone who knows a user's id can see that user's picture. `v` in the path changes with every upload, so the response is cached for a year (`Cache-Control: public, max-age=31536000, immutable`). Deleting the account deletes the picture.
 
 `PUT /profile` replaces the whole profile. The seeded interest slugs are `theatre`, `live_music`, `board_games`, `football`, `hiking`, `language_exchange`, `cinema`, `food_drinks`, `art_museums` and `cycling`.

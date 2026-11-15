@@ -1,8 +1,9 @@
 // Person B owns this folder: profile, event list with filters, join, match and group card.
 import { useState } from 'react';
-import { getInterests, getMe, listEvents } from '../../api.js';
+import { getInterests, listEvents } from '../../api.js';
 import { VerifyEmailNotice, useAuth } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
+import { useProfile } from '../../profile/ProfileContext.jsx';
 import useApi from '../../useApi.js';
 import EventCard from './EventCard.jsx';
 import ProfilePanel from './ProfilePanel.jsx';
@@ -23,7 +24,7 @@ export default function EventsPage() {
   const hasFilters = Boolean(filters.interest || filters.from || filters.to);
 
   const interests = useApi(getInterests);
-  const me = useApi(() => (canUse ? getMe() : Promise.resolve(null)), [canUse]);
+  const { profile } = useProfile();
   const events = useApi(
     () => listEvents(toQuery(filters)),
     [canUse, filters.interest, filters.from, filters.to],
@@ -102,7 +103,7 @@ export default function EventsPage() {
               event={ev}
               isAuthenticated={canUse}
               needsVerification={isAuthenticated && !canUse}
-              myId={me.data?.id}
+              myId={profile?.user_id}
               onChanged={events.reload}
             />
           ))}

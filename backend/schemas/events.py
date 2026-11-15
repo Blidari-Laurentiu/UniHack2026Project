@@ -36,10 +36,12 @@ class ProfileIn(BaseModel):
 
 
 class ProfileOut(BaseModel):
+    user_id: UUID
     display_name: str | None
     is_student: bool
     interests: list[Interest]
     availability: list[Slot]
+    avatar_url: str | None = None  # path of GET /profile/avatar/{user_id}; None: show the mascot
 
 
 class SignupOut(BaseModel):
@@ -51,6 +53,7 @@ class GroupMember(BaseModel):
     user_id: UUID
     display_name: str | None
     is_student: bool
+    avatar_url: str | None = None
 
 
 class Group(BaseModel):

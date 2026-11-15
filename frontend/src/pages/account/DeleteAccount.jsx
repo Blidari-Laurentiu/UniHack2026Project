@@ -71,7 +71,7 @@ export default function DeleteAccount({ account }) {
           </label>
           <ErrorBox error={error} />
           <div className="form-actions">
-            <button className="btn btn-primary" disabled={busy || typed !== WORD}>
+            <button className="btn btn-danger" disabled={busy || typed !== WORD}>
               {busy ? 'Deleting…' : 'Delete my account for good'}
             </button>
             <button

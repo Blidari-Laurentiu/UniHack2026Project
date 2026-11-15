@@ -1,70 +1,178 @@
-/* One plain stylesheet, mobile first. No UI library. */
+/* One plain stylesheet, mobile first. No UI library.
+
+   The look: ink outlines, amber fills, mono headings. Like a line drawing with one colour.
+   - Type: JetBrains Mono for headings, labels, buttons and numbers; IBM Plex Sans for reading.
+   - Colour: every colour is a token below. `data-theme` on <html> picks day or night
+     (index.html sets it before the first paint, components/ThemeToggle.jsx changes it).
+   - Amber on a light page has almost no contrast (1.8:1), so an amber fill always gets an
+     outline in light theme (--accent-edge) and amber text uses the darker --accent-ink.
+   Never write a hex colour outside the two token blocks. */
 
 :root {
-  --bg: #f6f7f9;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+
+  /* Day */
+  --bg: #faf8f4;
   --surface: #ffffff;
-  --text: #1c2024;
-  --muted: #5f6b76;
-  --border: #e1e5ea;
-  --primary: #1f5fbf;
-  --primary-hover: #184d9c;
-  --ok-bg: #e3f5e8;
+  --tint: #f2eee6; /* a quiet fill on a surface: chips, code, hover */
+  --text: #17130e; /* ink: text and the outlines of anything you can press */
+  --muted: #5f584c;
+  --border: #ded8cb; /* decoration only (1.4:1) */
+  --edge: #8a8275; /* borders that must be seen: inputs, quiet buttons (3.8:1) */
+  --accent: #ffb000;
+  --accent-hover: #ffc233;
+  --on-accent: #1a1300;
+  --accent-edge: #17130e; /* outline around an amber fill */
+  --accent-ink: #9a5200; /* amber as text or as a thin line (5.9:1) */
+  --accent-soft: #fff0cc;
+  --ok-bg: #e2f4e6;
   --ok-text: #17663a;
-  --warn-bg: #fff3d6;
-  --warn-text: #7a5300;
-  --err-bg: #fde8e8;
-  --err-text: #9b1c1c;
+  --warn-bg: #fff0cc;
+  --warn-text: #7a4a00;
+  --err-bg: #fde7e4;
+  --err-text: #a1211b;
+  --info-bg: #e6eefb;
+  --info-text: #1a4c97;
+  --danger: #b3261e;
+  --on-danger: #ffffff;
+  --graphic: #8e867a; /* neutral chart marks (3.6:1) */
+  --focus: #17130e;
+  --hard: #17130e; /* the offset shadow under a pressed-up button */
+  --shadow: 0 1px 2px rgba(23, 19, 14, 0.08), 0 6px 16px rgba(23, 19, 14, 0.1);
+
+  --radius-sm: 6px;
   --radius: 10px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --radius-lg: 14px;
+  --line: 1.5px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  /* Night */
+  --bg: #100e0b;
+  --surface: #1a1713;
+  --tint: #252019;
+  --text: #f4eee2;
+  --muted: #a9a091;
+  --border: #38322a;
+  --edge: #7d7566;
+  --accent: #ffb61f;
+  --accent-hover: #ffc64d;
+  --on-accent: #1a1300;
+  --accent-edge: #ffb61f;
+  --accent-ink: #ffc04a;
+  --accent-soft: #3a2a08;
+  --ok-bg: #12301c;
+  --ok-text: #86dda0;
+  --warn-bg: #3a2a08;
+  --warn-text: #ffd27a;
+  --err-bg: #3f1614;
+  --err-text: #ffa199;
+  --info-bg: #14274a;
+  --info-text: #a3c6ff;
+  --danger: #ff8a80;
+  --on-danger: #2b0906;
+  --graphic: #8f8778;
+  --focus: #ffb61f;
+  --hard: #7a5200;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 20px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font: 16px/1.55 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
 h2,
 h3 {
-  line-height: 1.25;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
   margin: 0 0 0.5rem;
+  text-wrap: balance;
 }
 h1 {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
 }
 h2 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   margin-top: 1rem;
+}
+h3 {
+  font-size: 0.95rem;
+  margin-top: 1.25rem;
 }
 p {
   margin: 0 0 0.75rem;
 }
 a {
-  color: var(--primary);
+  color: var(--accent-ink);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.18em;
+}
+a:hover {
+  color: var(--text);
+  text-decoration-color: var(--accent);
+}
+b,
+strong {
+  font-weight: 600;
 }
 code {
-  font-size: 0.875em;
-  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--tint);
   padding: 0.1em 0.35em;
   border-radius: 4px;
   word-break: break-all;
 }
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 
+/* The footer sits at the bottom of the window on a short page. */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
 .container {
   width: 100%;
-  max-width: 960px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding-inline: 1rem;
 }
 .main {
-  padding-block: 1.5rem 3rem;
+  flex: 1;
+  padding-block: 1.5rem 4rem;
+}
+/* The landing page lays out its own full-width bands. */
+.main-flush {
+  padding: 0;
 }
 .muted {
   color: var(--muted);
@@ -75,10 +183,37 @@ code {
 .center {
   text-align: center;
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 20;
+  padding: 0.5rem 0.9rem;
+  border: var(--line) solid var(--accent-edge);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 600 0.85rem var(--font-mono);
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 0.5rem;
+}
 
 /* Top bar */
 .topbar {
-  background: var(--surface);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -88,17 +223,45 @@ code {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1rem;
-  padding-block: 0.6rem;
+  gap: 0.25rem 0.75rem;
+  padding-block: 0.5rem;
 }
 .brand {
-  font-weight: 700;
-  color: var(--text);
-  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
   margin-right: auto;
+  color: var(--text);
+  font: 800 0.95rem var(--font-mono);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  white-space: nowrap;
 }
+.brand:hover {
+  color: var(--text);
+}
+.brand-mark {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: var(--line) solid var(--accent-edge);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+/* The city as a street-sign plate: amber, outlined. Same idea as .plate on the landing page. */
 .brand-city {
-  color: var(--primary);
+  display: none;
+  padding: 0.12rem 0.4rem;
+  border: var(--line) solid var(--accent-edge);
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .nav {
   display: flex;
@@ -108,139 +271,309 @@ code {
   overflow-x: auto;
 }
 .nav-link {
-  padding: 0.35rem 0.7rem;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-sm);
   color: var(--muted);
+  font: 500 0.85rem var(--font-mono);
   text-decoration: none;
   white-space: nowrap;
 }
 .nav-link:hover {
-  background: var(--bg);
+  background: var(--tint);
   color: var(--text);
 }
 .nav-link.active {
-  background: var(--bg);
   color: var(--text);
-  font-weight: 600;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.45em;
 }
 .auth {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-.nav-user {
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.icon-btn:hover {
+  background: var(--tint);
+  border-color: var(--border);
+}
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+/* The sun shows in dark theme (press for day), the moon in light theme. */
+.theme-toggle .icon-sun,
+:root[data-theme='dark'] .theme-toggle .icon-moon {
+  display: none;
+}
+:root[data-theme='dark'] .theme-toggle .icon-sun {
+  display: block;
+}
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
   max-width: 12rem;
+  padding: 0.2rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text);
+  font: 600 0.8rem var(--font-mono);
+  text-decoration: none;
+}
+.user-chip:hover,
+.user-chip.active {
+  background: var(--tint);
+  border-color: var(--border);
+  color: var(--text);
+}
+.user-chip-name {
+  display: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-right: 0.4rem;
 }
 
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .nav-link,
+  .user-chip {
+    min-height: 44px;
+  }
+}
+@media (min-width: 400px) {
+  .brand-city {
+    display: inline-block;
+  }
+}
 @media (min-width: 640px) {
+  .container {
+    padding-inline: 1.5rem;
+  }
   .brand {
-    margin-right: 0;
+    margin-right: 0.5rem;
   }
   .nav {
     order: 0;
     width: auto;
     margin-right: auto;
   }
+  .user-chip-name {
+    display: block;
+  }
   h1 {
-    font-size: 1.75rem;
+    font-size: 2rem;
+  }
+  h2 {
+    font-size: 1.2rem;
   }
 }
 
-/* Buttons */
+/* Footer */
+.footer {
+  border-top: 1px solid var(--border);
+  padding-block: 1.5rem 2.5rem;
+  color: var(--muted);
+  font: 0.78rem/1.6 var(--font-mono);
+}
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+}
+.footer p {
+  margin: 0;
+}
+.footer a {
+  color: var(--muted);
+}
+.footer a:hover {
+  color: var(--text);
+}
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+}
+
+/* Buttons: a quiet outline; the main action is amber. They lift a little on hover. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.55rem 1rem;
-  min-height: 40px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  gap: 0.5rem;
+  padding: 0.5rem 1.05rem;
+  min-height: 44px;
+  border: var(--line) solid var(--edge);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
-  font: inherit;
-  font-weight: 500;
+  font: 600 0.875rem/1.2 var(--font-mono);
+  letter-spacing: -0.01em;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    transform 0.16s var(--ease-out),
+    box-shadow 0.16s var(--ease-out),
+    background-color 0.16s,
+    border-color 0.16s;
 }
 .btn:hover {
-  background: var(--bg);
+  border-color: var(--text);
+  color: var(--text);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--hard);
+}
+.btn:active {
+  transform: none;
+  box-shadow: none;
 }
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  border-color: var(--edge);
+}
+/* Reduced motion: the button keeps its hard shadow on hover but does not move. */
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+  .btn:hover {
+    transform: none;
+  }
+}
+.btn svg {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
 }
 .btn-primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent-edge);
+  color: var(--on-accent);
 }
 .btn-primary:hover {
-  background: var(--primary-hover);
+  background: var(--accent-hover);
+  border-color: var(--accent-edge);
+  color: var(--on-accent);
+  box-shadow: 3px 3px 0 var(--hard);
+}
+.btn-primary:disabled {
+  border-color: var(--accent-edge);
+}
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-danger);
+}
+.btn-danger:hover {
+  border-color: var(--danger);
+  color: var(--on-danger);
+}
+.btn-danger:disabled {
+  border-color: var(--danger);
 }
 .btn-sm {
-  padding: 0.3rem 0.7rem;
-  min-height: 32px;
-  font-size: 0.875rem;
+  padding: 0.3rem 0.75rem;
+  min-height: 36px;
+  font-size: 0.8rem;
+}
+.btn-lg {
+  padding: 0.7rem 1.4rem;
+  min-height: 52px;
+  font-size: 1rem;
+}
+@media (pointer: coarse) {
+  .btn-sm {
+    min-height: 44px;
+  }
+}
+
+/* Page heading (h1 + lead) */
+.hero {
+  padding-block: 0.5rem 1.25rem;
+}
+.lead {
+  max-width: 62ch;
+  font-size: 1.05rem;
+  color: var(--muted);
 }
 
 /* Cards */
-.hero {
-  padding-block: 1rem 1.5rem;
-}
-.lead {
-  font-size: 1.1rem;
-  color: var(--muted);
-}
-.cards {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-}
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-lg);
   padding: 1.25rem;
 }
-.card-link {
-  display: flex;
-  flex-direction: column;
-  color: inherit;
-  text-decoration: none;
-  transition: border-color 0.15s;
+.card > :first-child {
+  margin-top: 0;
 }
-.card-link:hover {
-  border-color: var(--primary);
+.card + .card {
+  margin-top: 1rem;
 }
-.card-link p {
-  color: var(--muted);
-  flex: 1;
+/* A small amber pixel starts every section title, like the mascot's building blocks. */
+.card h2::before {
+  content: '';
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  margin-right: 0.55em;
+  border: var(--line) solid var(--accent-edge);
+  background: var(--accent);
 }
-.card-cta {
-  color: var(--primary);
-  font-weight: 600;
+@media (min-width: 640px) {
+  .card {
+    padding: 1.5rem;
+  }
 }
 
 /* Badges and chips */
 .badge {
   display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font: 600 0.68rem/1.2 var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   vertical-align: middle;
+  white-space: nowrap;
 }
 .badge-ok {
   background: var(--ok-bg);
+  border-color: color-mix(in srgb, var(--ok-text) 35%, transparent);
   color: var(--ok-text);
 }
 .badge-warn {
   background: var(--warn-bg);
+  border-color: color-mix(in srgb, var(--warn-text) 35%, transparent);
   color: var(--warn-text);
 }
 .chips {
@@ -253,11 +586,11 @@ code {
 }
 .chip {
   display: inline-block;
-  font-size: 0.8rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background: var(--bg);
+  padding: 0.25rem 0.6rem;
   border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--tint);
+  font: 500 0.75rem/1.3 var(--font-mono);
   white-space: nowrap;
 }
 
@@ -294,15 +627,18 @@ code {
 .kv {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 0.4rem 1rem;
+  gap: 0.5rem 1.25rem;
   margin: 0.75rem 0 0;
 }
 .kv dt {
+  padding-top: 0.15em;
   color: var(--muted);
+  font: 500 0.8rem/1.5 var(--font-mono);
 }
 .kv dd {
   margin: 0;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Alerts */
@@ -314,7 +650,8 @@ code {
   gap: 0.5rem;
   padding: 0.65rem 0.85rem;
   margin-block: 0.75rem;
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--err-text) 35%, transparent);
+  border-radius: var(--radius-sm);
   background: var(--err-bg);
   color: var(--err-text);
 }
@@ -327,43 +664,58 @@ code {
 }
 .field {
   display: grid;
-  gap: 0.3rem;
+  gap: 0.35rem;
   border: 0;
   padding: 0;
   margin: 0;
   min-width: 0;
 }
 .field-label {
-  font-size: 0.875rem;
-  font-weight: 600;
   padding: 0;
+  font: 600 0.8rem/1.4 var(--font-mono);
 }
 .input {
   width: 100%;
-  min-height: 40px;
-  padding: 0.45rem 0.65rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  min-height: 44px;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font: inherit;
+  transition: border-color 0.15s;
 }
-.input:focus-visible,
-.btn:focus-visible,
+.input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.input:hover {
+  border-color: var(--text);
+}
+.input:focus-visible {
+  border-color: var(--text);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.input:disabled {
+  cursor: not-allowed;
+  border-color: var(--edge);
+}
 .toggle input:focus-visible + span {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .form-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.6rem;
 }
-/* Checkbox shown as a pill you tap on or off */
+/* Checkbox shown as a tag you tap on or off. On: amber, with a tick (not colour alone). */
 .toggles {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 .toggle {
   cursor: pointer;
@@ -373,24 +725,491 @@ code {
   opacity: 0;
 }
 .toggle span {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
   padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
   background: var(--surface);
-  font-size: 0.9rem;
+  font: 500 0.8rem/1.2 var(--font-mono);
   user-select: none;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.toggle:hover span {
+  border-color: var(--text);
 }
 .toggle input:checked + span {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent-edge);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.toggle input:checked + span::before {
+  content: '';
+  width: 0.32em;
+  height: 0.62em;
+  margin: -0.15em 0.6em 0 0.1em;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+@media (pointer: coarse) {
+  .toggle span {
+    min-height: 44px;
+  }
+}
+
+/* Profile pictures. Without one, components/Mascot.jsx draws Timi from the user id. */
+.avatar {
+  display: inline-block;
+  flex: none;
+  overflow: hidden;
+  border-radius: 24%;
+  background: var(--tint);
+  box-shadow: 0 0 0 1px var(--border);
+  vertical-align: middle;
+}
+.avatar img,
+.avatar svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mascot {
+  display: block;
+}
+
+/* Landing page */
+.landing .container {
+  max-width: 1120px;
+}
+.landing-hero {
+  padding-block: 2rem 2.5rem;
+  overflow: hidden;
+}
+.landing-hero-inner {
+  display: grid;
+  gap: 2rem;
+  align-items: center;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  color: var(--muted);
+  font: 600 0.75rem/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.eyebrow::before {
+  content: '';
+  width: 0.65rem;
+  height: 0.65rem;
+  border: var(--line) solid var(--accent-edge);
+  background: var(--accent);
+}
+.display {
+  margin: 1rem 0;
+  font-size: clamp(2.3rem, 1.2rem + 5.4vw, 4.25rem);
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+}
+/* A street-sign plate around a word: amber, outlined, slightly tilted. */
+.plate {
+  display: inline-block;
+  padding: 0 0.16em 0.04em;
+  border: 0.045em solid var(--accent-edge);
+  border-radius: 0.14em;
+  background: var(--accent);
+  color: var(--on-accent);
+  transform: rotate(-1.5deg);
+}
+.landing-lead {
+  max-width: 34rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.15rem;
+  color: var(--muted);
+}
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.landing-note {
+  max-width: 34rem;
+  margin: 1.25rem 0 0;
+  color: var(--muted);
+  font: 0.78rem/1.6 var(--font-mono);
+}
+.landing-figure {
+  margin: 0;
+  min-width: 0;
+}
+.landing-figure figcaption {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font: 0.72rem/1.5 var(--font-mono);
+  text-align: right;
+}
+.landing-band {
+  border-top: 1px solid var(--border);
+  padding-block: 2.5rem;
+}
+.feature {
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+}
+.feature-art {
+  max-width: 26rem;
+  width: 100%;
+  margin-inline: auto;
+}
+.feature h2 {
+  margin: 0.75rem 0;
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.feature p {
+  max-width: 34rem;
+  color: var(--muted);
+}
+.feature-list {
+  display: grid;
+  gap: 0.7rem;
+  max-width: 34rem;
+  margin: 1.25rem 0 1.5rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.feature-list li {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+.feature-list li::before {
+  content: '';
+  width: 0.6rem;
+  height: 0.6rem;
+  margin: 0.5rem 0 0 0.3rem;
+  border: var(--line) solid var(--accent-edge);
+  background: var(--accent);
+}
+/* Steps that happen in order get a number instead of a pixel. */
+.feature-steps li {
+  counter-increment: step;
+}
+.feature-steps li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin: 0;
+  border-radius: 4px;
+  color: var(--on-accent);
+  font: 700 0.8rem var(--font-mono);
+}
+.feature-fine {
+  margin: 1rem 0 0;
+  font: 0.75rem/1.6 var(--font-mono);
+}
+.landing-timi {
+  background: var(--tint);
+}
+.timi {
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+}
+.timi h2 {
+  margin: 0.75rem 0;
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.timi p {
+  max-width: 34rem;
+  color: var(--muted);
+}
+.timi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  max-width: 22rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.timi-row .avatar {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  box-shadow: 0 0 0 var(--line) var(--text);
+  transition: transform 0.25s var(--ease-out);
+}
+.timi-row li:hover .avatar {
+  transform: translateY(-4px) rotate(-3deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .timi-row .avatar {
+    transition: none;
+  }
+  .timi-row li:hover .avatar {
+    transform: none;
+  }
+}
+@media (min-width: 860px) {
+  .landing-hero {
+    padding-block: 3.5rem 4rem;
+  }
+  .landing-hero-inner {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 3rem;
+  }
+  .landing-band {
+    padding-block: 4rem;
+  }
+  .feature {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+    gap: 3.5rem;
+  }
+  .feature-flip .feature-art {
+    order: 2;
+  }
+  .timi {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3.5rem;
+  }
+  .timi-row {
+    width: 22rem;
+  }
+}
+
+/* Line art (components/art/). Ink strokes, the page colour as fill so a shape hides what is
+   behind it, and amber for the one thing that matters in each drawing. */
+.art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--text);
+  --paper: var(--bg);
+}
+.landing-timi .art,
+.art-on-tint {
+  --paper: var(--tint);
+}
+.art-line,
+.art-solid,
+.art-amber {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.art-line {
+  fill: none;
+}
+.art-solid {
+  fill: var(--paper);
+}
+.art-amber {
+  fill: var(--accent);
+}
+.art-thin {
+  stroke-width: 1.5;
+}
+.art-far {
+  color: var(--edge);
+}
+.art-ink {
+  fill: currentColor;
+}
+.art-text {
+  fill: currentColor;
+  font: 700 10.5px var(--font-mono);
+  letter-spacing: 0.06em;
+}
+/* Marks drawn on top of an amber fill stay dark in both themes. */
+.art-on-amber {
+  color: var(--on-accent);
+}
+/* The lamp's light: a soft radial fade (the gradient is in CityArt.jsx), stronger at night. */
+.art-glow {
+  opacity: 0.55;
+}
+/* Windows are dark by day and lit at night; the sun and the moon swap. */
+.art-window {
+  fill: var(--paper);
+}
+.art-night {
+  display: none;
+}
+:root[data-theme='dark'] .art-window-lit {
+  fill: var(--accent);
+}
+:root[data-theme='dark'] .art-glow {
+  opacity: 0.8;
+}
+:root[data-theme='dark'] .art-night {
+  display: inline;
+}
+:root[data-theme='dark'] .art-day {
+  display: none;
+}
+/* The hero drawing draws itself once, then the lamp comes on. */
+@media (prefers-reduced-motion: no-preference) {
+  .art-draw [pathLength] {
+    stroke-dasharray: 1;
+    animation: art-draw 1.5s cubic-bezier(0.65, 0, 0.35, 1) backwards;
+    animation-delay: calc(var(--d, 0) * 1ms);
+  }
+  .art-draw .art-on {
+    animation: art-on 0.6s ease-out 1.5s backwards;
+  }
+}
+@keyframes art-draw {
+  from {
+    stroke-dashoffset: 1;
+    fill-opacity: 0;
+  }
+  60% {
+    fill-opacity: 0;
+  }
+}
+@keyframes art-on {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Account page */
+.account-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.25rem;
+}
+.account-head h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.account-head-text {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.account-head-text p {
+  margin: 0.25rem 0 0;
+}
+.avatar-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.avatar-editor-text {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.avatar-editor-text h3 {
+  margin: 0 0 0.25rem;
+}
+.avatar-editor-text p {
+  margin: 0;
+}
+.avatar-editor .alert {
+  flex-basis: 100%;
+  margin: 0;
+}
+.avatar-editor + h2 {
+  margin-top: 1.75rem;
+}
+/* A file input that looks like a button: the real input covers it, so keyboard and screen
+   readers get the native control. */
+.file-btn {
+  position: relative;
+  overflow: hidden;
+}
+.file-btn input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.file-btn input:disabled {
+  cursor: not-allowed;
+}
+.file-btn:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.file-btn[aria-disabled='true'] {
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none;
+}
+/* Ids we rarely need: blurred until asked for, so they stay off screenshots and screen shares. */
+.secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  min-width: 0;
+}
+.secret-value {
+  min-width: 0;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  background: var(--tint);
+  font: 0.8rem/1.5 var(--font-mono);
+  overflow-wrap: anywhere;
+  transition: filter 0.2s;
+}
+.secret-value[data-hidden='true'] {
+  filter: blur(5px);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.secret-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .secret-value {
+    transition: none;
+  }
+}
+
+/* Not found */
+.notfound {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding-block: 2.5rem;
+  text-align: center;
+}
+.notfound .avatar {
+  box-shadow: 0 0 0 var(--line) var(--text);
+}
+.notfound h1 {
+  margin: 0.5rem 0 0;
 }
 
 /* Events (Person B) */
-.card + .card {
-  margin-top: 1rem;
-}
 .profile-summary {
   display: flex;
   flex-wrap: wrap;
@@ -398,11 +1217,27 @@ code {
   justify-content: space-between;
   gap: 0.75rem;
 }
+.profile-summary-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+.profile-summary-name {
+  font: 700 1rem/1.3 var(--font-mono);
+  letter-spacing: -0.02em;
+}
+.profile-summary h2 {
+  margin-top: 0;
+}
 .profile-summary .chips {
   margin-top: 0.5rem;
 }
+/* When you are free: a dashed outline, so it differs from an interest by more than colour. */
 .chip-soft {
-  background: var(--surface);
+  background: none;
+  border-style: dashed;
+  border-color: var(--edge);
   color: var(--muted);
 }
 .filters {
@@ -410,7 +1245,7 @@ code {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 0.75rem;
   align-items: end;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 .filters .btn {
   justify-self: start;
@@ -421,8 +1256,52 @@ code {
   margin: 0;
 }
 .event {
-  padding-block: 1rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 1rem;
+  padding-block: 1.1rem;
   border-top: 1px solid var(--border);
+}
+/* The date as a calendar leaf: month on an amber strip, the day big. */
+.event-date {
+  display: grid;
+  align-content: start;
+  width: 3.5rem;
+  border: var(--line) solid var(--text);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  line-height: 1.2;
+  text-align: center;
+  align-self: start;
+}
+.event-date-month {
+  padding: 0.15rem 0;
+  border-bottom: var(--line) solid var(--text);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.event-date-day {
+  padding-top: 0.2rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.event-date-dow {
+  padding-bottom: 0.25rem;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.event-body {
+  min-width: 0;
 }
 .event-head {
   display: flex;
@@ -436,7 +1315,8 @@ code {
   min-width: 0;
 }
 .event-title {
-  font-size: 1.05rem;
+  font: 700 1.05rem/1.3 var(--font-mono);
+  letter-spacing: -0.02em;
 }
 .event-tags {
   display: flex;
@@ -460,22 +1340,28 @@ code {
 .notice {
   margin: 0.75rem 0 0;
   padding: 0.65rem 0.85rem;
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--warn-text) 35%, transparent);
+  border-radius: var(--radius-sm);
   background: var(--warn-bg);
   color: var(--warn-text);
 }
 .group-card {
-  margin-top: 0.75rem;
+  margin-top: 0.85rem;
   padding: 1rem;
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--primary);
-  border-radius: 8px;
-  background: var(--bg);
+  border: var(--line) solid var(--text);
+  border-radius: var(--radius);
+  background: var(--tint);
 }
 .group-card h3 {
-  font-size: 1rem;
+  margin-top: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .why {
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--accent);
   font-weight: 600;
 }
 .members {
@@ -483,24 +1369,22 @@ code {
   padding: 0;
   margin: 0 0 0.75rem;
   display: grid;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 .member {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  min-width: 0;
 }
-.avatar {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 600;
-  flex: none;
+.member-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 640px) {
+  .members {
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  }
 }
 
 /* Lease check (Person A) */
@@ -611,7 +1495,7 @@ code {
   width: 22px;
   height: 22px;
   border: 3px solid var(--border);
-  border-top-color: var(--primary);
+  border-top-color: var(--accent-ink);
   border-radius: 50%;
   animation: lease-spin 0.8s linear infinite;
 }
@@ -640,8 +1524,8 @@ code {
   --tone-text: var(--err-text);
 }
 .lease-tone-info {
-  --tone-bg: #e5eefb;
-  --tone-text: #1a4c97;
+  --tone-bg: var(--info-bg);
+  --tone-text: var(--info-text);
 }
 .lease-tone-none {
   --tone-bg: var(--bg);
@@ -649,10 +1533,9 @@ code {
 }
 .lease-chip {
   display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
+  font: 600 0.75rem/1.3 var(--font-mono);
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-sm);
   border: 1px solid currentColor;
   background: var(--tone-bg);
   color: var(--tone-text);
@@ -686,13 +1569,15 @@ code {
   margin-bottom: 0.5rem;
 }
 .lease-price-kicker {
+  font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   font-weight: 600;
   color: var(--tone-text);
 }
 .lease-price-verdict {
-  font-size: 1.4rem;
+  font: 800 1.4rem/1.25 var(--font-mono);
+  letter-spacing: -0.03em;
   color: var(--tone-text);
 }
 .lease-price-line {
@@ -752,7 +1637,7 @@ code {
   --tone-text: var(--err-text);
 }
 .lease-edge-info {
-  --tone-text: var(--primary);
+  --tone-text: var(--info-text);
 }
 .lease-clause p:last-child {
   margin-bottom: 0;
@@ -766,10 +1651,9 @@ code {
 .lease-quote {
   margin: 0 0 0.75rem;
   padding: 0.5rem 0.85rem;
-  border-left: 3px solid var(--border);
+  border-left: 3px solid var(--accent);
   background: var(--bg);
   border-radius: 0 6px 6px 0;
-  font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
 }
 .lease-quote::before {
@@ -832,7 +1716,7 @@ code {
   background: var(--bg);
 }
 .lease-history-item:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 .lease-history-item:disabled {
@@ -840,13 +1724,13 @@ code {
 }
 .lease-history-active {
   background: var(--bg);
-  box-shadow: inset 4px 0 0 var(--primary);
+  box-shadow: inset 4px 0 0 var(--accent-ink);
 }
 
 /* Lease: neighbourhood median chart (plain CSS bars) */
 .lease-chart {
-  --lease-chart-bar: #7896c9; /* 3:1 on white */
-  --lease-chart-bar-chosen: var(--primary);
+  --lease-chart-bar: var(--graphic); /* 3:1 on the card */
+  --lease-chart-bar-chosen: var(--accent);
   --lease-chart-grid: var(--border);
 }
 .lease-chart-toolbar {
@@ -858,19 +1742,18 @@ code {
 }
 .lease-chart-toggle {
   display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .lease-chart-toggle-btn {
   min-height: 36px;
   padding: 0.3rem 0.8rem;
   border: 0;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--edge);
   background: var(--surface);
   color: var(--text);
-  font: inherit;
-  font-size: 0.875rem;
+  font: 500 0.8rem/1.2 var(--font-mono);
   cursor: pointer;
 }
 .lease-chart-toggle-btn:first-child {
@@ -880,14 +1763,14 @@ code {
   background: var(--bg);
 }
 .lease-chart-toggle-btn[aria-pressed='true'] {
-  background: var(--primary);
-  color: #fff;
-  font-weight: 600;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
 }
 .lease-chart-toggle-btn:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: -4px;
-  box-shadow: inset 0 0 0 4px #fff;
+  box-shadow: inset 0 0 0 4px var(--surface);
 }
 .lease-chart-sub {
   margin-bottom: 0.75rem;
@@ -924,18 +1807,19 @@ code {
 .lease-chart-tag {
   margin-left: 0.4rem;
   padding: 0 0.4rem;
-  border-radius: 999px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 600;
+  border: 1px solid var(--accent-edge);
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 0.65rem/1.5 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   vertical-align: 0.1em;
   white-space: nowrap;
 }
 .lease-chart-n {
   color: var(--muted);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
+  font: 0.72rem/1.4 var(--font-mono);
 }
 .lease-chart-track {
   /* Room on the right so the value label after the longest bar never overflows. */
@@ -957,6 +1841,7 @@ code {
 }
 .lease-chart-row-chosen .lease-chart-bar {
   background: var(--lease-chart-bar-chosen);
+  box-shadow: inset 0 0 0 var(--line) var(--accent-edge);
 }
 .lease-chart-value {
   position: absolute;
@@ -966,8 +1851,7 @@ code {
   margin-left: 4px;
   padding: 0 2px;
   background: var(--surface);
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
+  font: 0.78rem/1.3 var(--font-mono);
   white-space: nowrap;
 }
 .lease-chart-row-chosen .lease-chart-value {
@@ -990,8 +1874,7 @@ code {
 .lease-chart-marker-label {
   position: absolute;
   top: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font: 600 0.72rem/1.4 var(--font-mono);
   white-space: nowrap;
 }
 .lease-chart-row-marked .lease-chart-track {
@@ -1038,7 +1921,7 @@ code {
 .lease-chart-value-inside {
   margin: 0 6px 0 0;
   background: none;
-  color: #fff;
+  color: var(--on-accent); /* dark on the grey bar and on the amber one, in both themes */
 }
 @media (forced-colors: active) {
   .lease-chart-value-inside {
@@ -1097,11 +1980,11 @@ code {
   background: var(--bg);
 }
 .lease-history-page-row:hover strong {
-  color: var(--primary);
+  color: var(--accent-ink);
   text-decoration: underline;
 }
 .lease-history-page-row:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 .lease-history-page-main {
@@ -1139,8 +2022,8 @@ code {
 
 /* Lease: monthly price trend (inline SVG line chart) */
 .lease-trend {
-  --lease-trend-area: var(--primary);
-  --lease-trend-city: #8a939c; /* neutral reference line, 3:1 on white */
+  --lease-trend-area: var(--accent-ink);
+  --lease-trend-city: var(--graphic); /* neutral reference line, 3:1 on the card */
   --lease-trend-grid: var(--border);
 }
 .lease-trend-toolbar {
@@ -1225,8 +2108,7 @@ code {
 }
 .lease-trend-tick {
   fill: var(--muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
+  font: 10.5px var(--font-mono);
 }
 .lease-trend-partial {
   fill: var(--bg);
@@ -1360,7 +2242,7 @@ code {
   background: var(--bg);
 }
 .lease-how-toggle:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 .lease-how-chevron {
@@ -1417,7 +2299,7 @@ code {
   box-shadow: var(--shadow);
 }
 .lease-how-tab:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 .lease-how-panel {
@@ -1462,16 +2344,16 @@ code {
   background: var(--bg);
 }
 .lease-how-scroll:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 .lease-how-code {
   margin: 0;
   padding: 0.75rem 0.85rem;
-  font: 0.8rem/1.55 ui-monospace, 'Cascadia Code', Consolas, 'Courier New', monospace;
+  font: 0.8rem/1.55 var(--font-mono);
   white-space: pre;
   tab-size: 2;
-  /* Cascadia Code would draw >= as ≥: show the SQL exactly as typed */
+  /* JetBrains Mono would draw >= as ≥: show the SQL exactly as typed */
   font-variant-ligatures: none;
   font-feature-settings: 'calt' 0, 'liga' 0;
   overflow-wrap: normal;
@@ -1489,7 +2371,7 @@ code {
   font-weight: 700;
 }
 .lease-how-json-key {
-  color: var(--primary);
+  color: var(--info-text);
 }
 .lease-how-json-string {
   color: var(--ok-text);
@@ -1507,12 +2389,12 @@ code {
 }
 .lease-how-more summary {
   margin-bottom: 0.5rem;
-  color: var(--primary);
+  color: var(--accent-ink);
   font-size: 0.9rem;
   cursor: pointer;
 }
 .lease-how-more summary:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 @media (forced-colors: active) {

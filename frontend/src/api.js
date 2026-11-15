@@ -84,6 +84,9 @@ function qs(params = {}) {
   return entries.length ? `?${new URLSearchParams(entries)}` : '';
 }
 
+/** Full URL of a path the API gave us (a profile picture's avatar_url), for an <img>. */
+export const apiUrl = (path) => (path ? `${API_URL}${path}` : null);
+
 // --- shared ---
 export const getMe = () => apiFetch('/me');
 export const getAccount = () => apiFetch('/account');
@@ -123,6 +126,14 @@ export const getInterests = () => apiFetch('/profile/interests');
 export const getProfile = () => apiFetch('/profile');
 /** profile: { display_name, interest_slugs: [slug], availability: [slot] } */
 export const saveProfile = (profile) => apiFetch('/profile', { method: 'PUT', body: profile });
+/** picture: a JPEG, PNG or WebP Blob, at most 512 KB. Returns the profile with the new avatar_url. */
+export const uploadAvatar = (picture) => {
+  const body = new FormData();
+  body.append('file', picture, 'avatar');
+  return apiFetch('/profile/avatar', { method: 'PUT', body });
+};
+/** Back to the mascot. Returns the profile with avatar_url null. */
+export const deleteAvatar = () => apiFetch('/profile/avatar', { method: 'DELETE' });
 export const joinEvent = (eventId) =>
   apiFetch(`/events/${encodeURIComponent(eventId)}/join`, { method: 'POST' });
 export const leaveEvent = (eventId) =>

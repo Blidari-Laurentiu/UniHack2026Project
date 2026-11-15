@@ -18,3 +18,18 @@ export function formatWhen(iso) {
     minute: '2-digit',
   });
 }
+
+/** { month: 'Nov', day: '18', weekday: 'Wed' } in the browser's language, for the date tile. */
+export function dateParts(iso) {
+  const date = new Date(iso);
+  const part = (options) => date.toLocaleString(undefined, options);
+  return {
+    month: part({ month: 'short' }),
+    day: part({ day: 'numeric' }),
+    weekday: part({ weekday: 'short' }),
+  };
+}
+
+export function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
