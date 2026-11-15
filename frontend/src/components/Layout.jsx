@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useMatch } from 'react-router-dom';
+import { getMe } from '../api.js';
 import { LoginButton, LogoutButton, useAuth } from '../auth/index.js';
 import { LangSwitch } from '../i18n.jsx';
 import { useProfile } from '../profile/ProfileContext.jsx';
 import { useT } from '../strings.js';
+import useApi from '../useApi.js';
 import Avatar from './Avatar.jsx';
 import { TimiMark } from './Mascot.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
@@ -44,6 +46,10 @@ export default function Layout() {
   const t = useT();
   const link = ({ isActive }) => (isActive ? 'nav-link active' : 'nav-link');
   const landing = useMatch('/');
+  // The Moderation tab shows only to moderators and admins; the API checks the role again.
+  const { canUse } = useAuth();
+  const me = useApi(() => (canUse ? getMe() : Promise.resolve(null)), [canUse]);
+  const canModerate = (me.data?.roles || []).some((r) => r === 'moderator' || r === 'admin');
 
   const title = t('title');
   useEffect(() => {
@@ -69,6 +75,11 @@ export default function Layout() {
             <NavLink to="/events" className={link}>
               {t('nav.events')}
             </NavLink>
+            {canModerate && (
+              <NavLink to="/moderation" className={link}>
+                {t('nav.moderation')}
+              </NavLink>
+            )}
           </nav>
           <div className="auth">
             <LangSwitch />

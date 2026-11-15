@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMyGroup, joinEvent, leaveEvent, runMatch } from '../../api.js';
+import { getMyGroup, joinEvent, leaveEvent, reportEvent, runMatch } from '../../api.js';
 import { LoginButton } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import GroupCard from './GroupCard.jsx';
@@ -14,8 +14,12 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null); // { waiting } after a match without this user
   const [group, setGroup] = useState(null);
+  // Report: null = closed, a string = the form is open with this text, true = sent.
+  const [report, setReport] = useState(null);
 
   const status = isAuthenticated ? event.my_status : null;
+  // Anything but 'active' reaches only the event's creator: waiting for review, or removed.
+  const open = event.status === 'active';
 
   // Load the group whenever this event shows the user as grouped.
   useEffect(() => {
@@ -63,6 +67,20 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
       }
     });
 
+  async function sendReport(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await reportEvent(event.id, report.trim());
+      setReport(true);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const when = dateParts(event.starts_at, t.lang);
 
   return (
@@ -82,6 +100,7 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
             </span>
           </div>
           <div className="event-tags">
+            {event.created_by_me && <span className="chip chip-soft">{t('yourEvent')}</span>}
             {event.interest && <span className="chip">{interestLabel(t, event.interest)}</span>}
             {event.slot && <span className="chip">{slotLabel(t, event.slot)}</span>}
           </div>
@@ -94,10 +113,11 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
             {event.signup_count === 0 ? t('firstToGo') : t('wantToGo', event.signup_count)}
           </span>
 
+          {!open && <span className="badge badge-warn">{t(`status.${event.status}`)}</span>}
           {!isAuthenticated && !needsVerification && <LoginButton className="btn btn-sm" />}
           {needsVerification && <span className="badge badge-warn">{t('verifyToJoin')}</span>}
 
-          {isAuthenticated && (status === null || status === 'left') && (
+          {isAuthenticated && open && (status === null || status === 'left') && (
             <button className="btn btn-primary" onClick={join} disabled={busy}>
               {t('join')}
             </button>
@@ -107,7 +127,7 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
             <>
               <span className="badge badge-warn">{t('onList')}</span>
               {/* Needs myId (from the profile) to tell whether the new groups include this user. */}
-              <button className="btn btn-primary" onClick={match} disabled={busy || !myId}>
+              <button className="btn btn-primary" onClick={match} disabled={busy || !myId || !open}>
                 {busy ? t('matching') : t('findGroup')}
               </button>
               <button className="btn" onClick={leave} disabled={busy}>
@@ -124,8 +144,56 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
               </button>
             </>
           )}
+
+          {isAuthenticated && open && !event.created_by_me && report === null && (
+            <button type="button" className="btn btn-sm" onClick={() => setReport('')}>
+              {t('report')}
+            </button>
+          )}
         </div>
 
+        {!open && (
+          <p className="notice">{t(event.status === 'pending' ? 'pendingText' : 'rejectedText')}</p>
+        )}
+        {typeof report === 'string' && (
+          <form className="form" onSubmit={sendReport}>
+            <label className="field">
+              <span className="field-label">{t('reportTitle')}</span>
+              <textarea
+                className="input event-textarea"
+                rows={2}
+                value={report}
+                onChange={(e) => setReport(e.target.value)}
+                minLength={5}
+                maxLength={500}
+                required
+                autoFocus
+                placeholder={t('reportPlaceholder')}
+              />
+            </label>
+            <div className="form-actions">
+              <button className="btn btn-primary btn-sm" disabled={busy || report.trim().length < 5}>
+                {busy ? t('reportSending') : t('reportSend')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  setReport(null);
+                  setError(null);
+                }}
+                disabled={busy}
+              >
+                {t('cancel')}
+              </button>
+            </div>
+          </form>
+        )}
+        {report === true && (
+          <p className="small muted" role="status">
+            {t('reported')}
+          </p>
+        )}
         {notice && (
           <p className="notice">
             {notice.waiting < MIN_GROUP

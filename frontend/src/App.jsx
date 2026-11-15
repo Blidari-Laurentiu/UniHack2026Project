@@ -8,6 +8,7 @@ import LeasePage from './pages/lease/LeasePage.jsx';
 import LeaseHistoryPage from './pages/lease/LeaseHistoryPage.jsx';
 import LeaseHistoryDetail from './pages/lease/LeaseHistoryDetail.jsx';
 import EventsPage from './pages/events/EventsPage.jsx';
+import ModerationPage from './pages/moderation/ModerationPage.jsx';
 
 export default function App() {
   return (
@@ -32,6 +33,14 @@ export default function App() {
           }
         />
         <Route path="events" element={<EventsPage />} />
+        <Route
+          path="moderation"
+          element={
+            <ProtectedRoute>
+              <ModerationPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="me"
           element={

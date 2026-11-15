@@ -49,6 +49,8 @@ cp .env.example .env               # then fill in the real values
 | `GEMINI_API_KEY` | your own key from Google AI Studio |
 | `GEMINI_MODEL` | `gemini-3.1-flash-lite` |
 | `DEMO_CACHE` | `0`. With `1`, the demo lease (English interface) answers from a saved report instead of calling Gemini. |
+| `LEASE_CHECKS_PER_DAY`, `LEASE_CHECKS_PER_DAY_STUDENT` | optional: lease checks per user in 24 hours, `5` and `20` (verified students). |
+| `EVENT_CREATE_DAILY_LIMIT` | optional: events a user can create in 24 hours, `3`. The roles `creator`, `moderator` and `admin` have no limit. |
 | `CORS_ORIGINS` | `http://localhost:5173` |
 | `MAIL_FROM`, `BREVO_API_KEY` | sender and Brevo key for the student code emails. Leave the key empty on a laptop: the code is printed in the server log. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | SMTP instead of Brevo, for local use only (Render's free plan blocks SMTP). |
@@ -106,6 +108,7 @@ npm run dev                        # http://localhost:5173
 | `VITE_AUTH0_AUDIENCE` | `https://newcomer-hub/api` |
 | `VITE_API_URL` | `http://localhost:8000` |
 | `VITE_DEV_USER` | optional: a name such as `alice` lets you skip Auth0 login (works only when the backend has `APP_ENV=dev`) |
+| `VITE_DEV_ROLES` | optional, with `VITE_DEV_USER`: the roles to act with, such as `moderator` or `creator,admin` |
 
 `npm run build` makes a production build in `frontend/dist/`.
 

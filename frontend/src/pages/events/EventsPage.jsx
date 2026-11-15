@@ -5,6 +5,7 @@ import { VerifyEmailNotice, useAuth } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import { useProfile } from '../../profile/ProfileContext.jsx';
 import useApi from '../../useApi.js';
+import CreateEventForm from './CreateEventForm.jsx';
 import EventCard from './EventCard.jsx';
 import ProfilePanel from './ProfilePanel.jsx';
 import { interestLabel, useT } from './strings.js';
@@ -24,6 +25,8 @@ export default function EventsPage() {
   const [filters, setFilters] = useState({ interest: '', from: '', to: '' });
   const setFilter = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.value }));
   const hasFilters = Boolean(filters.interest || filters.from || filters.to);
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(null); // the event just created, for the notice
 
   const interests = useApi(getInterests);
   const { profile } = useProfile();
@@ -49,6 +52,43 @@ export default function EventsPage() {
       {canUse && (
         <section className="card">
           <ProfilePanel interests={interests.data || []} authUser={authUser} />
+        </section>
+      )}
+
+      {canUse && (
+        <section className="card">
+          {creating ? (
+            <>
+              <h2>{t('createTitle')}</h2>
+              <CreateEventForm
+                interests={interests.data || []}
+                onCreated={(event) => {
+                  setCreated(event);
+                  setCreating(false);
+                  events.reload();
+                }}
+                onCancel={() => setCreating(false)}
+              />
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setCreated(null);
+                  setCreating(true);
+                }}
+              >
+                {t('createEvent')}
+              </button>
+              {created && (
+                <p className="notice" role="status">
+                  {t(created.status === 'pending' ? 'createdPending' : 'createdActive', created.title)}
+                </p>
+              )}
+            </>
+          )}
         </section>
       )}
 

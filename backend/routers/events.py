@@ -1,14 +1,43 @@
-"""Feature B (Person B): events, signups and groups."""
+"""Feature B (Person B): events, signups and groups.
+
+Anyone logged in can create an event (POST /events). Trusted creators (verified students,
+people who already went out with a group, and the roles creator, moderator and admin) are
+published at once; everyone else waits for a moderator (routers/moderation.py). An event with
+more than REPORTS_BEFORE_REVIEW open reports goes back to 'pending' and off the list.
+"""
 
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials
 
-from auth import EmailNotVerified, bearer_scheme, current_user, dev_bypass_enabled, dev_user_scheme
+from auth import (
+    ADMIN_ROLE,
+    CREATOR_ROLE,
+    MODERATOR_ROLE,
+    EmailNotVerified,
+    bearer_scheme,
+    caller_access,
+    current_user,
+    dev_bypass_enabled,
+    dev_user_scheme,
+    effective_roles,
+)
+from config import settings
 from db import get_conn
-from schemas.events import Event, Group, GroupMember, Interest, MatchResult, SignupOut
+from schemas.events import (
+    Event,
+    EventIn,
+    Group,
+    GroupMember,
+    Interest,
+    MatchResult,
+    ReportIn,
+    ReportOut,
+    SignupOut,
+)
 from services.avatars import avatar_path
 from services.matching import form_groups
 from services.student import active_sql
@@ -18,6 +47,13 @@ router = APIRouter(prefix="/events", tags=["events"])
 MIN_GROUP_SIZE = 3
 MEET_BEFORE = timedelta(minutes=30)
 MEET_NOTE = "Meet at the entrance 30 minutes before."
+
+LOCAL_TZ = ZoneInfo("Europe/Bucharest")  # slots are on Timișoara's wall clock
+MAX_AHEAD = timedelta(days=365)
+STAFF_ROLES = {CREATOR_ROLE, MODERATOR_ROLE, ADMIN_ROLE}  # no daily limit, no review
+# An active event with more open reports than this goes to 'pending' until a moderator looks.
+REPORTS_BEFORE_REVIEW = 10
+NOT_OPEN = "this event is not open right now"
 
 
 def optional_user(
@@ -40,7 +76,8 @@ def optional_user(
 def _require_event(conn, event_id: UUID, lock: bool = False) -> dict:
     """The event row, or 404. lock=True serialises joins, leaves and matches per event."""
     row = conn.execute(
-        "select id, starts_at from events where id = %s" + (" for update" if lock else ""),
+        "select id, starts_at, status, created_by from events where id = %s"
+        + (" for update" if lock else ""),
         (event_id,),
     ).fetchone()
     if row is None:
@@ -52,6 +89,75 @@ def _require_upcoming(event: dict) -> None:
     """Joining or matching makes no sense once the event has started: 409."""
     if event["starts_at"] <= datetime.now(timezone.utc):
         raise HTTPException(status_code=409, detail="this event has already started")
+
+
+def _require_open(event: dict) -> dict:
+    """Joining, matching and reporting need an event that is on the list: 409 otherwise."""
+    if event["status"] != "active":
+        raise HTTPException(status_code=409, detail=NOT_OPEN)
+    return event
+
+
+def slot_for(starts_at: datetime) -> str:
+    """The availability slot of a start time (same rule as db/seed_events.py)."""
+    local = starts_at.astimezone(LOCAL_TZ)
+    part = "morning" if local.hour < 12 else "afternoon" if local.hour < 17 else "evening"
+    if local.weekday() >= 5:
+        return f"weekend_{part}"
+    # There is no weekday afternoon slot.
+    return "weekday_morning" if part == "morning" else "weekday_evening"
+
+
+def _has_attended(conn, user_id: UUID) -> bool:
+    """True when the user was in a group for an event that has already taken place."""
+    return conn.execute(
+        """
+        select exists (
+            select 1 from event_signups s join events e on e.id = s.event_id
+            where s.user_id = %s and s.status = 'grouped' and e.starts_at < now()
+        ) as attended
+        """,
+        (user_id,),
+    ).fetchone()["attended"]
+
+
+def _events(conn, where: list[str], params: dict, user: dict | None) -> list[Event]:
+    """Events matching `where` (SQL on e and i), ordered by start time."""
+    rows = conn.execute(
+        f"""
+        select e.id, e.title, e.venue, e.starts_at, e.slot, e.description, e.status,
+               coalesce(e.created_by = %(user_id)s::uuid, false) as created_by_me,
+               i.id as interest_id, i.slug as interest_slug, i.label as interest_label,
+               (select count(*) from event_signups s
+                 where s.event_id = e.id and s.status in ('waiting', 'grouped')) as signup_count,
+               (select s.status from event_signups s
+                 where s.event_id = e.id and s.user_id = %(user_id)s::uuid) as my_status
+        from events e left join interests i on i.id = e.interest_id
+        where {" and ".join(where)}
+        order by e.starts_at, e.title
+        """,
+        {**params, "user_id": user["id"] if user else None},
+    ).fetchall()
+    return [
+        Event(
+            id=r["id"],
+            title=r["title"],
+            venue=r["venue"],
+            starts_at=r["starts_at"],
+            slot=r["slot"],
+            interest=(
+                Interest(id=r["interest_id"], slug=r["interest_slug"], label=r["interest_label"])
+                if r["interest_id"]
+                else None
+            ),
+            description=r["description"],
+            signup_count=r["signup_count"],
+            my_status=r["my_status"],
+            status=r["status"],
+            created_by_me=r["created_by_me"],
+        )
+        for r in rows
+    ]
 
 
 def remove_from_groups(conn, user_id: UUID, event_id: UUID | None = None) -> None:
@@ -137,50 +243,113 @@ def list_events(
     user: dict | None = Depends(optional_user),
     conn=Depends(get_conn),
 ):
-    where = ["e.starts_at >= coalesce(%(from)s::timestamptz, now())"]
+    # Events that are waiting for review or were removed show only to their creator.
+    where = [
+        "e.starts_at >= coalesce(%(from)s::timestamptz, now())",
+        "(e.status = 'active' or e.created_by = %(user_id)s::uuid)",
+    ]
     if to is not None:
         where.append("e.starts_at <= %(to)s")
     if interest:
         where.append("i.slug = %(interest)s")
+    return _events(conn, where, {"from": from_, "to": to, "interest": interest}, user)
 
-    rows = conn.execute(
-        f"""
-        select e.id, e.title, e.venue, e.starts_at, e.slot, e.description,
-               i.id as interest_id, i.slug as interest_slug, i.label as interest_label,
-               (select count(*) from event_signups s
-                 where s.event_id = e.id and s.status in ('waiting', 'grouped')) as signup_count,
-               (select s.status from event_signups s
-                 where s.event_id = e.id and s.user_id = %(user_id)s::uuid) as my_status
-        from events e left join interests i on i.id = e.interest_id
-        where {" and ".join(where)}
-        order by e.starts_at, e.title
+
+@router.post("", response_model=Event, status_code=201)
+def create_event(
+    body: EventIn,
+    user: dict = Depends(current_user),
+    access: dict = Depends(caller_access),
+    conn=Depends(get_conn),
+):
+    now = datetime.now(timezone.utc)
+    if body.starts_at <= now:
+        raise HTTPException(status_code=422, detail="the event must start in the future")
+    if body.starts_at > now + MAX_AHEAD:
+        raise HTTPException(status_code=422, detail="the event must start within a year")
+
+    interest_id = None
+    if body.interest_slug:
+        row = conn.execute(
+            "select id from interests where slug = %s", (body.interest_slug,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=422, detail=f"unknown interest: {body.interest_slug}")
+        interest_id = row["id"]
+
+    # current_user holds the lock on this user's row, so two requests cannot both pass the count.
+    staff = bool(effective_roles(access) & STAFF_ROLES)
+    limit = settings.EVENT_CREATE_DAILY_LIMIT
+    if not staff:
+        recent = conn.execute(
+            "select count(*) as n from events"
+            " where created_by = %s and created_at > now() - interval '1 day'",
+            (user["id"],),
+        ).fetchone()["n"]
+        if recent >= limit:
+            raise HTTPException(
+                status_code=429,
+                detail=f"you can create {limit} event{'' if limit == 1 else 's'} a day, try again tomorrow",
+            )
+
+    trusted = staff or user["is_student"] or _has_attended(conn, user["id"])
+    event_id = conn.execute(
+        """
+        insert into events (title, venue, starts_at, slot, interest_id, description, created_by, status)
+        values (%s, %s, %s, %s, %s, %s, %s, %s)
+        returning id
         """,
-        {"from": from_, "to": to, "interest": interest, "user_id": user["id"] if user else None},
-    ).fetchall()
+        (
+            body.title,
+            body.venue,
+            body.starts_at,
+            slot_for(body.starts_at),
+            interest_id,
+            body.description or None,
+            user["id"],
+            "active" if trusted else "pending",
+        ),
+    ).fetchone()["id"]
+    event = _events(conn, ["e.id = %(id)s"], {"id": event_id}, user)[0]
+    conn.commit()
+    return event
 
-    return [
-        Event(
-            id=r["id"],
-            title=r["title"],
-            venue=r["venue"],
-            starts_at=r["starts_at"],
-            slot=r["slot"],
-            interest=(
-                Interest(id=r["interest_id"], slug=r["interest_slug"], label=r["interest_label"])
-                if r["interest_id"]
-                else None
-            ),
-            description=r["description"],
-            signup_count=r["signup_count"],
-            my_status=r["my_status"],
-        )
-        for r in rows
-    ]
+
+@router.post("/{event_id}/report", response_model=ReportOut, status_code=201)
+def report_event(
+    event_id: UUID,
+    body: ReportIn,
+    user: dict = Depends(current_user),
+    conn=Depends(get_conn),
+):
+    # The lock makes the count below exact when several reports arrive together.
+    event = _require_open(_require_event(conn, event_id, lock=True))
+    if event["created_by"] == user["id"]:
+        raise HTTPException(status_code=409, detail="you cannot report your own event")
+    already = conn.execute(
+        "select 1 from reports where event_id = %s and reporter_id = %s"
+        " and reported_user_id is null and group_id is null",
+        (event_id, user["id"]),
+    ).fetchone()
+    if already:
+        raise HTTPException(status_code=409, detail="you have already reported this event")
+
+    conn.execute(
+        "insert into reports (reporter_id, event_id, reason) values (%s, %s, %s)",
+        (user["id"], event_id, body.reason),
+    )
+    open_reports = conn.execute(
+        "select count(*) as n from reports where event_id = %s and status = 'open'", (event_id,)
+    ).fetchone()["n"]
+    if open_reports > REPORTS_BEFORE_REVIEW:
+        conn.execute("update events set status = 'pending' where id = %s", (event_id,))
+    conn.commit()
+    return ReportOut(event_id=event_id)
 
 
 @router.post("/{event_id}/join", response_model=SignupOut)
 def join_event(event_id: UUID, user: dict = Depends(current_user), conn=Depends(get_conn)):
-    _require_upcoming(_require_event(conn, event_id))
+    _require_upcoming(_require_open(_require_event(conn, event_id)))
     # Joining again after leaving puts you at the back of the waiting list.
     row = conn.execute(
         """
@@ -221,7 +390,7 @@ def leave_event(event_id: UUID, user: dict = Depends(current_user), conn=Depends
 
 @router.post("/{event_id}/match", response_model=MatchResult)
 def run_match(event_id: UUID, user: dict = Depends(current_user), conn=Depends(get_conn)):
-    event = _require_event(conn, event_id, lock=True)
+    event = _require_open(_require_event(conn, event_id, lock=True))
     _require_upcoming(event)
     # Only people on this event can trigger its matching, not any logged-in user.
     mine = conn.execute(

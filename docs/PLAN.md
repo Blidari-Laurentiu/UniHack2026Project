@@ -122,7 +122,7 @@ Not started: Gemini icebreakers per group.
 
 - **Hosting:** Render for the backend (free Docker service, Frankfurt, sleeps after 15 minutes) and Vercel for the frontend. Both deploy from `main`. Vultr is not used.
 - **Slides dropped:** judging is a 1-on-1 walkthrough.
-- **Report button cut.** It will not be built. The `reports` table stays in `20_events.sql`, and `GET /admin/reports` (#23) still reads it; it returns an empty list.
+- **Report button is back** (Sunday). Users create events and report them; an event with more than 10 open reports leaves the list until a moderator or admin reviews it on the Moderation page. New events from people who are not trusted yet (not a verified student, never out with a group, no `creator` role) wait for review too. Limits: 3 events a day (none for `creator`, `moderator`, `admin`); 5 lease checks a day, 20 for verified students.
 - **Team notes stay local:** `docs/DEMO.md`, `docs/PITCH_A.md`, `docs/PITCH_B.md` and `docs/HANDOFF_PROMPT.md` are in `.gitignore`. They are never pushed and never linked from `README.md`. Old copies remain in the commits of #16, #19 and #20.
 - **Feature freeze** at 24:00 (12 AM) between Saturday and Sunday.
 

@@ -217,8 +217,8 @@ def test_analyze_holds_no_request_long_connection(client, conn, gemini, hood):
     assert len(opened) == 3  # user upsert + limit check, price query, save
 
 
-def test_hourly_limit_is_a_429_before_gemini(client, gemini, hood, monkeypatch):
-    monkeypatch.setattr(lease_router, "MAX_CHECKS_PER_HOUR", 2)
+def test_daily_limit_is_a_429_before_gemini(client, gemini, hood, monkeypatch):
+    monkeypatch.setattr(settings, "LEASE_CHECKS_PER_DAY", 2)
     me, other = as_user("mei"), as_user("andrei")
     for _ in range(2):
         assert client.post("/lease/analyze", json=body(hood), headers=me).status_code == 200
@@ -226,11 +226,42 @@ def test_hourly_limit_is_a_429_before_gemini(client, gemini, hood, monkeypatch):
 
     r = client.post("/lease/analyze", json=body(hood), headers=me)
     assert r.status_code == 429
-    assert set(r.json()) == {"detail"}
+    assert r.json() == {
+        "detail": "You have checked 2 leases in the last 24 hours."
+        " Verify your student status for a higher limit, or try again later."
+    }
     assert len(gemini.calls) == calls  # refused before Gemini
     assert len(client.get("/lease/analyses", headers=me).json()) == 2
     # The limit is per user.
     assert client.post("/lease/analyze", json=body(hood), headers=other).status_code == 200
+
+
+def test_students_get_a_higher_daily_limit(client, conn, hood, monkeypatch):
+    monkeypatch.setattr(settings, "LEASE_CHECKS_PER_DAY", 1)
+    monkeypatch.setattr(settings, "LEASE_CHECKS_PER_DAY_STUDENT", 3)
+    me = as_user("student")
+    assert client.post("/lease/analyze", json=body(hood), headers=me).status_code == 200
+    assert client.post("/lease/analyze", json=body(hood), headers=me).status_code == 429
+
+    conn.execute(
+        "update users set is_student = true, student_verified_at = now() where auth0_sub = %s",
+        (f"dev|{me['X-Dev-User']}",),
+    )
+    for _ in range(2):
+        assert client.post("/lease/analyze", json=body(hood), headers=me).status_code == 200
+    r = client.post("/lease/analyze", json=body(hood), headers=me)
+    assert r.status_code == 429
+    assert r.json() == {
+        "detail": "You have checked 3 leases in the last 24 hours. Please try again later."
+    }
+
+    # Checks older than 24 hours do not count.
+    conn.execute(
+        "update lease_analyses set created_at = now() - interval '25 hours' where user_id ="
+        " (select id from users where auth0_sub = %s)",
+        (f"dev|{me['X-Dev-User']}",),
+    )
+    assert client.post("/lease/analyze", json=body(hood), headers=me).status_code == 200
 
 
 def test_personal_ids_never_reach_gemini_or_the_database(client, conn, gemini, hood):

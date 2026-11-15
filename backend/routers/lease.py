@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from psycopg.types.json import Jsonb
 
 from auth import authenticate, current_user, upsert_user
+from config import settings
 from db import get_conn, get_connector
 from schemas.lease import (
     LeaseAnalysis,
@@ -47,11 +48,20 @@ NOT_FOUND = "analysis not found"
 DB_DOWN = "Price data is unavailable right now (database error). Please try again."
 GEMINI_UNEXPECTED = "Lease analysis is unavailable right now."
 
-# Gemini quota guard: one account (Auth0 sign-up is open) cannot use it up for everyone.
-MAX_CHECKS_PER_HOUR = 30
-RATE_LIMITED = (
-    f"You have checked {MAX_CHECKS_PER_HOUR} leases in the last hour. Please try again later."
-)
+
+def daily_limit(user: dict) -> int:
+    """Gemini quota guard: checks per user in any 24 hours. Verified students get more."""
+    if user["is_student"]:
+        return settings.LEASE_CHECKS_PER_DAY_STUDENT
+    return settings.LEASE_CHECKS_PER_DAY
+
+
+def rate_limited(user: dict) -> str:
+    text = f"You have checked {daily_limit(user)} leases in the last 24 hours."
+    if user["is_student"]:
+        return f"{text} Please try again later."
+    return f"{text} Verify your student status for a higher limit, or try again later."
+
 
 COLUMNS = "id, created_at, neighbourhood, rooms, rent_eur, result_json, price_verdict"
 
@@ -79,16 +89,16 @@ def _to_analysis(row: dict) -> LeaseAnalysis:
 
 
 def _start(connect, identity: dict) -> dict:
-    """Upsert the user and enforce the hourly limit (429), on one short connection."""
+    """Upsert the user and enforce the daily limit (429), on one short connection."""
     with connect() as conn:
         user = upsert_user(conn, **identity)
         recent = conn.execute(
             "select count(*) as n from lease_analyses"
-            " where user_id = %s and created_at > now() - interval '1 hour'",
+            " where user_id = %s and created_at > now() - interval '1 day'",
             (user["id"],),
         ).fetchone()["n"]
-        if recent >= MAX_CHECKS_PER_HOUR:
-            raise HTTPException(status_code=429, detail=RATE_LIMITED)
+        if recent >= daily_limit(user):
+            raise HTTPException(status_code=429, detail=rate_limited(user))
         return user
 
 
