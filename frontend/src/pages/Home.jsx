@@ -1,13 +1,9 @@
 import { Link } from 'react-router-dom';
-import Avatar from '../components/Avatar.jsx';
 import { ArrowIcon } from '../components/Icon.jsx';
 import CityArt from '../components/art/CityArt.jsx';
 import GroupArt from '../components/art/GroupArt.jsx';
 import LeaseArt from '../components/art/LeaseArt.jsx';
 import { useT } from '../strings.js';
-
-// Any text works as a seed; these eight just show the range of roofs, legs and colours.
-const TIMIS = ['unirii', 'bega', 'fabric', 'iosefin', 'elisabetin', 'cetate', 'mehala', 'lipovei'];
 
 export default function Home() {
   const t = useT();
@@ -19,20 +15,21 @@ export default function Home() {
             <p className="eyebrow">{t('home.eyebrow')}</p>
             <h1 className="display">
               {t('home.titleBefore')}
-              <span className="plate">Timișoara</span>
+              {/* The question mark stays on the plate's line, never alone at the start of the next. */}
+              <span className="plate-line">
+                <span className="plate">Timișoara</span>?
+              </span>
               {t('home.titleAfter')}
             </h1>
             <p className="landing-lead">{t('home.lead')}</p>
             <div className="landing-actions">
               <Link to="/lease" className="btn btn-primary btn-lg">
                 {t('home.leaseCta')}
-                <ArrowIcon />
               </Link>
               <Link to="/events" className="btn btn-lg">
                 {t('home.findGroup')}
               </Link>
             </div>
-            <p className="landing-note">{t('home.privacy')}</p>
           </div>
           <figure className="landing-figure">
             <CityArt label={t('home.art')} />
@@ -57,7 +54,6 @@ export default function Home() {
             </ul>
             <Link to="/lease" className="btn btn-primary">
               {t('home.leaseCta')}
-              <ArrowIcon />
             </Link>
             <p className="feature-fine muted">{t('home.leaseFine')}</p>
           </div>
@@ -83,26 +79,6 @@ export default function Home() {
               <ArrowIcon />
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section className="landing-band landing-timi" aria-labelledby="home-timi">
-        <div className="container timi">
-          <div>
-            <p className="eyebrow">{t('home.timiEyebrow')}</p>
-            <h2 id="home-timi">{t('home.timiTitle')}</h2>
-            <p>{t('home.timiText')}</p>
-            <Link to="/me" className="btn">
-              {t('home.timiCta')}
-            </Link>
-          </div>
-          <ul className="timi-row" aria-hidden="true">
-            {TIMIS.map((seed) => (
-              <li key={seed}>
-                <Avatar userId={seed} size={null} />
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
     </div>

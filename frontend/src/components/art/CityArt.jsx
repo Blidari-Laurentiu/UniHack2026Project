@@ -1,5 +1,5 @@
 // The landing page drawing: a street in Timișoara, in outline. Cathedral spires, a row of old
-// houses, a tram, a street lamp, and Timi arriving with a suitcase.
+// houses, a tram and a street lamp.
 // It draws itself once on load (styles.css, .art-draw); `d` is each part's delay in ms.
 // By night (dark theme) some windows are lit, and the sun gives way to the moon and stars.
 
@@ -167,13 +167,6 @@ export default function CityArt({ label }) {
         />
         <path className="art-line art-thin" d="M181 384H351" {...draw(1000)} />
         <circle className="art-amber art-thin" cx="348" cy="389" r="2.5" {...draw(1100)} />
-      </g>
-
-      {/* Timi, just arrived, suitcase in hand */}
-      <g>
-        <path className="art-amber" d="M473 287L480 287L480 294L487 294L487 301L494 301L494 308L501 308L501 315L494 315L494 336L487 336L487 329L466 329L466 336L459 336L459 315L452 315L452 308L459 308L459 301L466 301L466 294L473 294Z" {...draw(1200)} />
-        <path className="art-solid art-thin" d="M466 315h7v7h-7zM480 315h7v7h-7z" {...draw(1300)} />
-        <path className="art-solid art-thin" d="M506 322h13v14h-13zM510 322v-5h5v5" {...draw(1300)} />
       </g>
 
       {/* Street lamp. The glow comes on last. */}

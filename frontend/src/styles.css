@@ -856,12 +856,16 @@ code {
   letter-spacing: -0.055em;
   isolation: isolate;
 }
-/* A street-sign plate around a word: amber, outlined, slightly tilted. It sits behind the
-   heading's other lines, so an accent on the line below (Î in "Începe") stays visible. */
+/* A street-sign plate around a word: amber, outlined, slightly tilted. The space under it
+   keeps an accent on the line below (Î in "Începe") clear of the plate. */
+.plate-line {
+  white-space: nowrap;
+}
 .plate {
   position: relative;
   z-index: -1;
   display: inline-block;
+  margin-bottom: 0.22em;
   padding: 0 0.16em 0.04em;
   border: 0.045em solid var(--accent-edge);
   border-radius: 0.14em;
@@ -879,12 +883,6 @@ code {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-}
-.landing-note {
-  max-width: 34rem;
-  margin: 1.25rem 0 0;
-  color: var(--muted);
-  font: 0.78rem/1.6 var(--font-mono);
 }
 .landing-figure {
   margin: 0;
@@ -962,52 +960,6 @@ code {
   margin: 1rem 0 0;
   font: 0.75rem/1.6 var(--font-mono);
 }
-.landing-timi {
-  background: var(--tint);
-}
-.timi {
-  display: grid;
-  gap: 1.5rem;
-  align-items: center;
-}
-.timi h2 {
-  margin: 0.75rem 0;
-  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-}
-.timi p {
-  max-width: 34rem;
-  color: var(--muted);
-}
-.timi-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.6rem;
-  max-width: 22rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.timi-row .avatar {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
-  box-shadow: 0 0 0 var(--line) var(--text);
-  transition: transform 0.25s var(--ease-out);
-}
-.timi-row li:hover .avatar {
-  transform: translateY(-4px) rotate(-3deg);
-}
-@media (prefers-reduced-motion: reduce) {
-  .timi-row .avatar {
-    transition: none;
-  }
-  .timi-row li:hover .avatar {
-    transform: none;
-  }
-}
 @media (min-width: 860px) {
   .landing-hero {
     padding-block: 3.5rem 4rem;
@@ -1026,13 +978,6 @@ code {
   .feature-flip .feature-art {
     order: 2;
   }
-  .timi {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 3.5rem;
-  }
-  .timi-row {
-    width: 22rem;
-  }
 }
 
 /* Line art (components/art/). Ink strokes, the page colour as fill so a shape hides what is
@@ -1045,7 +990,6 @@ code {
   color: var(--text);
   --paper: var(--bg);
 }
-.landing-timi .art,
 .art-on-tint {
   --paper: var(--tint);
 }
