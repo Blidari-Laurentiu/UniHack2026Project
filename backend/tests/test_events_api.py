@@ -344,6 +344,43 @@ def test_signup_count_and_my_status(client, world):
     assert (event["signup_count"], event["my_status"]) == (2, "left")
 
 
+def test_mine_lists_only_the_events_i_am_going_to(client, world):
+    concert = world.event("Test concert", world.music)
+    old = world.event("Old game night", world.games, starts_at=datetime(2020, 1, 1, tzinfo=timezone.utc))
+    world.waiting_users(2)  # other people's signups never count as mine
+
+    def mine(**params):
+        r = client.get("/events", params={"mine": "true", **params})
+        assert r.status_code == 200, r.text
+        return [e["title"] for e in r.json()]
+
+    world.user = world.new_user("Mei")
+    assert mine() == []
+
+    client.post(f"/events/{world.event_id}/join")
+    client.post(f"/events/{concert}/join")
+    world.conn.execute(
+        "insert into event_signups (event_id, user_id, status) values (%s, %s, 'grouped')",
+        (old, world.user["id"]),
+    )
+    assert mine() == ["Test concert", "Test game night"]  # upcoming only, ordered like the list
+    assert mine(interest=world.music) == ["Test concert"]  # the other filters still apply
+    assert "Old game night" in mine(**{"from": "2019-01-01T00:00:00Z"})
+
+    client.post(f"/events/{concert}/leave")
+    assert mine() == ["Test game night"]
+
+    # An event taken off the list for review is hidden here too.
+    world.conn.execute("update events set status = 'pending' where id = %s", (world.event_id,))
+    assert mine() == []
+
+
+def test_mine_needs_a_login(client, world):
+    r = client.get("/events", params={"mine": "true"})
+    assert r.status_code == 401
+    assert r.json() == {"detail": "log in to see your events"}
+
+
 # --- join and leave ---
 
 
@@ -696,6 +733,81 @@ def test_more_than_ten_reports_take_the_event_off_the_list(client, world):
     world.user = world.new_user("Twelfth")
     r = client.post(f"{url}/report", json={"reason": "Looks fake"})
     assert (r.status_code, r.json()) == (409, {"detail": "this event is not open right now"})
+
+
+def test_creator_removes_their_own_event(client, world):
+    world.user = world.new_user("Mei", is_student=True)
+    event = create(client, world).json()
+    world.waiting_users(3, event_id=event["id"])
+    client.post(f"/events/{event['id']}/join")
+    client.post(f"/events/{event['id']}/match")
+    world.reports(1, event["id"])
+
+    r = client.delete(f"/events/{event['id']}")
+    assert (r.status_code, r.content) == (204, b"")
+    assert event["id"] not in [e["id"] for e in events(client, world)]
+    assert client.delete(f"/events/{event['id']}").status_code == 404
+    # Signups and groups went with it; the report stays, closed, without its event.
+    left = world.conn.execute(
+        """
+        select (select count(*) from event_signups where event_id = %(id)s) as signups,
+               (select count(*) from event_groups where event_id = %(id)s) as groups
+        """,
+        {"id": event["id"]},
+    ).fetchone()
+    assert left == {"signups": 0, "groups": 0}
+    report = world.conn.execute(
+        "select event_id, status, resolved_by from reports where reporter_id = "
+        "(select id from users where auth0_sub = %s)",
+        (f"test|{world.tag}|reporter{world.user_count}",),
+    ).fetchone()
+    assert report == {"event_id": None, "status": "actioned", "resolved_by": world.user["id"]}
+
+
+def test_only_the_creator_or_a_moderator_removes_an_event(client, world):
+    forbidden = (403, {"detail": "only the creator or a moderator can remove this event"})
+    url = f"/events/{world.event_id}"  # a seeded event: nobody created it
+    assert client.delete(url).status_code == 401
+
+    world.user = world.new_user("Mei", is_student=True)
+    r = client.delete(url)
+    assert (r.status_code, r.json()) == forbidden
+    mine = create(client, world).json()
+
+    world.user, world.roles = world.new_user("Organiser"), {"creator"}
+    for path in (url, f"/events/{mine['id']}"):  # the creator role only covers your own events
+        r = client.delete(path)
+        assert (r.status_code, r.json()) == forbidden
+    assert world.event_row() is not None and world.event_row(mine["id"]) is not None
+
+    r = client.delete(f"/events/{MISSING}")
+    assert (r.status_code, r.json()) == (404, {"detail": "event not found"})
+
+
+@pytest.mark.parametrize("role", ["moderator", "admin"])
+def test_moderators_and_admins_remove_any_event(client, world, role):
+    world.user = world.new_user("Newcomer")
+    pending = create(client, world).json()  # hidden from everyone else, still removable
+
+    world.user, world.roles = world.new_user("Staff"), {role}
+    for event_id in (world.event_id, pending["id"]):
+        assert client.delete(f"/events/{event_id}").status_code == 204
+        assert world.event_row(event_id) is None
+
+
+def test_admin_without_mfa_cannot_remove(client, world):
+    world.user, world.roles = world.new_user("Admin"), {"admin"}
+    app.dependency_overrides[caller_access] = lambda: {"roles": {"admin"}, "mfa": False}
+    assert client.delete(f"/events/{world.event_id}").status_code == 403
+    assert world.event_row() is not None
+
+
+def test_started_event_cannot_be_removed(client, world):
+    past = world.event("Yesterday's game night", world.games, starts_at=datetime(2020, 1, 1, tzinfo=timezone.utc))
+    world.user, world.roles = world.new_user("Moderator"), {"moderator"}
+    r = client.delete(f"/events/{past}")
+    assert (r.status_code, r.json()) == (409, {"detail": "this event has already started"})
+    assert world.event_row(past) is not None
 
 
 def test_people_on_a_hidden_event_can_still_leave(client, world):

@@ -52,6 +52,10 @@ const en = {
   noMatch: 'No events match these filters.',
   noEvents: 'No upcoming events.',
   sample: 'Sample events for the demo.',
+  'view.label': 'Which events to show',
+  'view.all': 'All events',
+  'view.mine': 'My events',
+  noMine: 'You are not going to any event yet. Pick one under “All events” and press “I want to go”.',
 
   // EventCard
   firstToGo: 'Be the first to go',
@@ -79,6 +83,9 @@ const en = {
   reportSend: 'Send report',
   reportSending: 'Sending…',
   reported: 'Thank you. A moderator will look at this event.',
+  remove: 'Remove',
+  confirmRemove: (title) =>
+    `Remove “${title}”? Everyone who joined loses their place and their group. This cannot be undone.`,
 
   // CreateEventForm
   createEvent: 'Create an event',
@@ -143,6 +150,11 @@ const ro = {
   noMatch: 'Niciun eveniment nu se potrivește cu aceste filtre.',
   noEvents: 'Nu există evenimente viitoare.',
   sample: 'Evenimente de exemplu pentru demo.',
+  'view.label': 'Ce evenimente să apară',
+  'view.all': 'Toate evenimentele',
+  'view.mine': 'Evenimentele mele',
+  noMine:
+    'Încă nu mergi la niciun eveniment. Alege unul din „Toate evenimentele” și apasă „Vreau să merg”.',
 
   firstToGo: 'Fii primul care se înscrie',
   wantToGo: (n) =>
@@ -170,6 +182,9 @@ const ro = {
   reportSend: 'Trimite raportul',
   reportSending: 'Se trimite…',
   reported: 'Mulțumim. Un moderator va verifica acest eveniment.',
+  remove: 'Șterge',
+  confirmRemove: (title) =>
+    `Ștergi „${title}”? Toți cei înscriși își pierd locul și grupul. Acțiunea nu poate fi anulată.`,
 
   createEvent: 'Creează un eveniment',
   createTitle: 'Creează un eveniment',

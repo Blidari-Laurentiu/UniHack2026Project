@@ -120,7 +120,8 @@ export const getPriceTrend = ({ rooms, neighbourhood } = {}) =>
   apiFetch(`/pricing/trend${qs({ rooms, neighbourhood })}`);
 
 // --- Feature B: event groups (Person B) ---
-/** filters: { interest: slug, from: ISO datetime, to: ISO datetime }, all optional. */
+/** filters: { interest: slug, from: ISO datetime, to: ISO datetime, mine: true }, all optional.
+ *  mine: only the events the user is going to (needs a login). */
 export const listEvents = (filters = {}) => apiFetch(`/events${qs(filters)}`);
 export const getInterests = () => apiFetch('/profile/interests');
 export const getProfile = () => apiFetch('/profile');
@@ -146,6 +147,9 @@ export const getMyGroup = (eventId) => apiFetch(`/events/${encodeURIComponent(ev
 export const createEvent = (event) => apiFetch('/events', { method: 'POST', body: event });
 export const reportEvent = (eventId, reason) =>
   apiFetch(`/events/${encodeURIComponent(eventId)}/report`, { method: 'POST', body: { reason } });
+/** Deletes the event for good. Only its creator, a moderator or an admin; resolves to null. */
+export const removeEvent = (eventId) =>
+  apiFetch(`/events/${encodeURIComponent(eventId)}`, { method: 'DELETE' });
 // Moderators and admins: events waiting for review and events with open reports.
 export const getReviewQueue = () => apiFetch('/moderation/events');
 export const approveEvent = (eventId) =>
