@@ -445,7 +445,7 @@ code {
     font-size: 0.85rem;
   }
 }
-@media (min-width: 560px) {
+@media (min-width: 600px) {
   .brand-city {
     display: inline-block;
   }
