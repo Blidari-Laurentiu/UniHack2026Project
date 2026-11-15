@@ -5,7 +5,7 @@
 Timișoara Newcomer Hub, UniHack 8 (team of 2, 48 hours). Status: `docs/PLAN.md`. API contract: `API.md`.
 
 - **Feature A, lease check (Person A):** paste a Romanian lease; Gemini returns a clause checklist; pricing gives a price verdict against neighbourhood listings. Pricing must answer even if Gemini fails.
-- **Feature B, event groups (Person B):** set interests and availability, join an event, `POST /events/{id}/match` forms groups of 3 to 5 with a "why you match" line.
+- **Feature B, event groups (Person B):** set interests and availability, join an event, `POST /events/{id}/match` forms groups of 3 to 5 with a "why you match" line. Users create events (`POST /events`) and report them; moderators and admins review them on the Moderation page.
 
 ## Stack
 
@@ -20,14 +20,14 @@ Timișoara Newcomer Hub, UniHack 8 (team of 2, 48 hours). Status: `docs/PLAN.md`
 ```
 backend/   main.py, config.py, db.py, auth.py, schemas/, tests/,
            routers/ (lease, pricing, health, me, admin, student = A;
-                     events, profile, account = B),
+                     events, moderation, profile, account = B),
            services/ (gemini, pricing, pdf_text, student, mailer = A;
                       matching, auth0_api = B)
 db/        schema/00_shared.sql, 05_student.sql (A), 10_lease.sql (A), 20_events.sql (B)
            apply_schema.py, reset_db.py, seed.py,
            seed_listings.py (A), seed_events.py (B)
 frontend/  src/api.js, src/auth/, src/i18n.jsx, src/strings.js,
-           src/pages/lease/ and student/ (A), events/ and account/ (B)
+           src/pages/lease/ and student/ (A), events/, moderation/ and account/ (B)
 docs/PLAN.md
 ```
 
@@ -39,7 +39,7 @@ docs/PLAN.md
 - Schema files are idempotent (`if not exists`); scripts never drop outside `reset_db.py`.
 - `reset_db.py` and `seed.py` refuse to run unless `APP_ENV=dev`; `reset_db.py` asks unless `--yes`.
 - Dev bypass: header `X-Dev-User` works only when `APP_ENV=dev`.
-- Auth0 claims under `https://newcomer-hub/`: `email` (may be missing; `users.email` is nullable), `email_verified` (required), `roles` and `mfa` (admins need MFA). Student status comes from a university email code, not a claim.
+- Auth0 claims under `https://newcomer-hub/`: `email` (may be missing; `users.email` is nullable), `email_verified` (required), `roles` (`admin`, `moderator`, `creator`) and `mfa` (admins need MFA). Student status comes from a university email code, not a claim.
 - Redact CNP, IBAN and ID series from lease text before Gemini and before saving.
 - Errors are `{"detail": "..."}`.
 - Every frontend request goes through `src/api.js`; pages never call `fetch`.

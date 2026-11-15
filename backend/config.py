@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     DEMO_CACHE: bool = False
+    # Limits per user in any 24 hours. Students (verified by university code) get the higher
+    # lease limit; the roles creator, moderator and admin have no event limit.
+    LEASE_CHECKS_PER_DAY: int = 5
+    LEASE_CHECKS_PER_DAY_STUDENT: int = 20
+    EVENT_CREATE_DAILY_LIMIT: int = 3
     CORS_ORIGINS: str = "http://localhost:5173"
     # Outgoing email (student verification codes). MAIL_FROM is "Name <address>".
     # BREVO_API_KEY set: sent through Brevo's HTTPS API (works on Render's free plan, which

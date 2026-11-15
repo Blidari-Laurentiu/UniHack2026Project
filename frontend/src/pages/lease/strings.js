@@ -303,7 +303,8 @@ const ro = {
   'status.0': 'Nu putem contacta serverul. Verifică internetul și încearcă din nou; serverul poate avea nevoie de un minut ca să pornească.',
   'status.401': 'Trebuie să fii autentificat. Autentifică-te și încearcă din nou.',
   'status.422': 'Datele trimise nu sunt valide. Verifică formularul și încearcă din nou.',
-  'status.429': 'Ai verificat prea multe contracte în ultima oră. Încearcă din nou mai târziu.',
+  'status.429':
+    'Ai atins limita de verificări pentru 24 de ore. Studenții verificați au o limită mai mare. Încearcă din nou mai târziu.',
   'status.503': 'Serviciul nu este disponibil momentan. Încearcă din nou peste puțin timp.',
   // PDF upload errors, by status; the 422 cases are told apart by a word in the server's text.
   'pdf.413': 'PDF-ul este prea mare: cel mult 5 MB. Lipește textul contractului.',

@@ -4,7 +4,7 @@
 // message for the HTTP status. The lease pages have their own (pages/lease/strings.js).
 //
 // Keep in step with the detail strings in backend/auth.py, main.py and routers/
-// (account, student, profile, events). A text not listed here still gets the status message.
+// (account, student, profile, events, moderation). A text not listed here still gets the status message.
 import { roCount } from './i18n.jsx';
 
 const HOW_RO = {
@@ -67,6 +67,11 @@ const EXACT = {
   'you have not joined this event': 'Nu te-ai înscris la acest eveniment.',
   'join this event before matching': 'Înscrie-te la eveniment înainte să cauți un grup.',
   'not in a group yet': 'Încă nu ești într-un grup.',
+  'this event is not open right now': 'Evenimentul nu este disponibil momentan.',
+  'the event must start in the future': 'Evenimentul trebuie să înceapă în viitor.',
+  'the event must start within a year': 'Evenimentul trebuie să înceapă în cel mult un an.',
+  'you cannot report your own event': 'Nu poți raporta propriul eveniment.',
+  'you have already reported this event': 'Ai raportat deja acest eveniment.',
 };
 
 // Server texts with a name or a number in them.
@@ -89,6 +94,11 @@ const PATTERNS = [
       `Cod greșit. Mai ai ${n === '1' ? 'o încercare' : roCount(Number(n), 'încercare', 'încercări')}.`,
   ],
   [/^unknown interest: (.+)$/i, (slugs) => `Interes necunoscut: ${slugs}.`],
+  [
+    /^you can create (\d+) events? a day, try again tomorrow$/i,
+    (n) =>
+      `Poți crea ${n === '1' ? 'un eveniment' : roCount(Number(n), 'eveniment', 'evenimente')} pe zi. Încearcă din nou mâine.`,
+  ],
 ];
 
 // When the text is not known: a message for the HTTP status (0 = the server could not be reached).

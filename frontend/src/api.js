@@ -1,7 +1,7 @@
 // The only place the frontend talks to the backend. Pages never call fetch.
 // One function per endpoint in API.md; keep the two in sync.
 
-import { API_URL, DEV_USER } from './config.js';
+import { API_URL, DEV_ROLES, DEV_USER } from './config.js';
 
 let tokenGetter = null;
 
@@ -14,7 +14,7 @@ export function setTokenGetter(fn) {
 }
 
 async function authHeaders() {
-  if (DEV_USER) return { 'X-Dev-User': DEV_USER };
+  if (DEV_USER) return { 'X-Dev-User': DEV_USER, ...(DEV_ROLES && { 'X-Dev-Roles': DEV_ROLES }) };
   if (!tokenGetter) return {};
   try {
     const token = await tokenGetter();
@@ -141,3 +141,14 @@ export const leaveEvent = (eventId) =>
 export const runMatch = (eventId) =>
   apiFetch(`/events/${encodeURIComponent(eventId)}/match`, { method: 'POST' });
 export const getMyGroup = (eventId) => apiFetch(`/events/${encodeURIComponent(eventId)}/my-group`);
+/** event: { title, venue, starts_at: ISO datetime, interest_slug?, description? }. Returns the Event;
+ *  its status is 'pending' when a moderator has to approve it first. */
+export const createEvent = (event) => apiFetch('/events', { method: 'POST', body: event });
+export const reportEvent = (eventId, reason) =>
+  apiFetch(`/events/${encodeURIComponent(eventId)}/report`, { method: 'POST', body: { reason } });
+// Moderators and admins: events waiting for review and events with open reports.
+export const getReviewQueue = () => apiFetch('/moderation/events');
+export const approveEvent = (eventId) =>
+  apiFetch(`/moderation/events/${encodeURIComponent(eventId)}/approve`, { method: 'POST' });
+export const rejectEvent = (eventId) =>
+  apiFetch(`/moderation/events/${encodeURIComponent(eventId)}/reject`, { method: 'POST' });

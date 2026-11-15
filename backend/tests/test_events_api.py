@@ -7,13 +7,14 @@ APP_ENV not "dev", or the server cannot be reached). Needs `python db/apply_sche
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from psycopg.rows import dict_row
 
-from auth import current_user
+from auth import caller_access, current_user
 from config import settings
 from db import get_conn
 from main import app
@@ -36,6 +37,7 @@ class World:
         self.conn = conn
         self.tag = uuid.uuid4().hex[:8]
         self.user = None  # who the API sees; None = anonymous
+        self.roles = set()  # the acting user's Auth0 roles
         self.user_count = 0
         self.games = self.interest("games", "Test games")
         self.music = self.interest("music", "Test music")
@@ -60,6 +62,22 @@ class World:
             """,
             (title, starts_at, interest_slug),
         ).fetchone()["id"]
+
+    def event_row(self, event_id=None):
+        return self.conn.execute(
+            "select status, slot, created_by from events where id = %s",
+            (event_id or self.event_id,),
+        ).fetchone()
+
+    def reports(self, count, event_id=None):
+        """count open reports on the event, each from a new user."""
+        for _ in range(count):
+            self.user_count += 1
+            reporter = self.new_user(f"reporter{self.user_count}")
+            self.conn.execute(
+                "insert into reports (reporter_id, event_id, reason) values (%s, %s, 'Looks fake')",
+                (reporter["id"], event_id or self.event_id),
+            )
 
     def new_user(self, name, interests=(), availability=(), is_student=False):
         row = self.conn.execute(
@@ -135,6 +153,9 @@ def client(world):
 
     app.dependency_overrides[get_conn] = lambda: world.conn
     app.dependency_overrides[current_user] = acting_user
+    app.dependency_overrides[caller_access] = lambda: (
+        acting_user() and {"roles": set(world.roles), "mfa": True}
+    )
     app.dependency_overrides[optional_user] = lambda: world.user
     # No `with`: skips the lifespan, so the DB pool is never opened.
     yield TestClient(app)
@@ -497,3 +518,285 @@ def test_leaving_a_group_of_three_sends_the_others_back_to_waiting(client, world
     client.post(f"{url}/join")
     result = client.post(f"{url}/match").json()
     assert [len(g["members"]) for g in result["groups"]] == [3]
+
+
+# --- community events: create, report, review ---
+
+WED, FRI, SAT = 2, 4, 5
+
+
+def local_time(weekday, hour, minute=0):
+    """That weekday and time on Timișoara's clock, a month or so from now, as an ISO string."""
+    day = datetime.now(ZoneInfo("Europe/Bucharest")) + timedelta(days=30)
+    day += timedelta(days=(weekday - day.weekday()) % 7)
+    return day.replace(hour=hour, minute=minute, second=0, microsecond=0).isoformat()
+
+
+NEW_EVENT = {
+    "title": "  Picnic in Parcul Rozelor ",
+    "venue": "Parcul Rozelor",
+    "starts_at": local_time(SAT, 19),
+    "description": "Bring a blanket.",
+}
+
+
+def create(client, world, **extra):
+    return client.post("/events", json={**NEW_EVENT, "interest_slug": world.games, **extra})
+
+
+def test_anonymous_cannot_create_or_report(client, world):
+    assert create(client, world).status_code == 401
+    r = client.post(f"/events/{world.event_id}/report", json={"reason": "Looks fake"})
+    assert r.status_code == 401
+
+
+def test_a_student_creates_an_event_that_is_listed_at_once(client, world):
+    world.user = world.new_user("Mei", is_student=True)
+    r = create(client, world)
+    assert r.status_code == 201, r.text
+    event = r.json()
+    assert event["title"] == "Picnic in Parcul Rozelor"
+    assert event["slot"] == "weekend_evening"
+    assert event["interest"]["slug"] == world.games
+    assert (event["status"], event["created_by_me"], event["signup_count"]) == ("active", True, 0)
+    assert world.event_row(event["id"])["created_by"] == world.user["id"]
+
+    world.user = None
+    listed = {e["id"]: e for e in events(client, world)}
+    assert listed[event["id"]]["created_by_me"] is False
+
+
+def test_slot_comes_from_the_local_start_time(client, world):
+    world.user = world.new_user("Mei", is_student=True)
+    world.roles = {"creator"}  # four events: more than the daily limit
+    assert create(client, world, starts_at=local_time(WED, 11)).json()["slot"] == "weekday_morning"
+    # 13:00 on a weekday: there is no weekday afternoon slot.
+    assert create(client, world, starts_at=local_time(WED, 13)).json()["slot"] == "weekday_evening"
+    assert create(client, world, starts_at=local_time(SAT, 13)).json()["slot"] == "weekend_afternoon"
+    # Half past midnight on Saturday in Timișoara is still Friday in UTC: the local day counts.
+    late = datetime.fromisoformat(local_time(SAT, 0, 30)).astimezone(timezone.utc)
+    assert late.weekday() == FRI
+    assert create(client, world, starts_at=late.isoformat()).json()["slot"] == "weekend_morning"
+
+
+def test_a_new_user_s_event_waits_for_review(client, world):
+    world.user = world.new_user("Newcomer")
+    event = create(client, world).json()
+    assert event["status"] == "pending"
+    # The creator sees it, nobody else does, and nobody can join it.
+    assert event["id"] in [e["id"] for e in events(client, world)]
+    r = client.post(f"/events/{event['id']}/join")
+    assert (r.status_code, r.json()) == (409, {"detail": "this event is not open right now"})
+    world.user = world.new_user("Other")
+    assert event["id"] not in [e["id"] for e in events(client, world)]
+    world.user = None
+    assert event["id"] not in [e["id"] for e in events(client, world)]
+
+
+def test_someone_who_went_out_with_a_group_is_trusted(client, world):
+    user = world.new_user("Regular")
+    past = world.event("Last week", world.games, starts_at=datetime.now(timezone.utc) - timedelta(days=7))
+    world.conn.execute(
+        "insert into event_signups (event_id, user_id, status) values (%s, %s, 'grouped')",
+        (past, user["id"]),
+    )
+    world.user = user
+    assert create(client, world).json()["status"] == "active"
+
+
+def test_create_rejects_bad_input(client, world):
+    world.user = world.new_user("Mei", is_student=True)
+    r = create(client, world, starts_at="2020-01-01T10:00:00Z")
+    assert (r.status_code, r.json()) == (422, {"detail": "the event must start in the future"})
+    far = (datetime.now(timezone.utc) + timedelta(days=400)).isoformat()
+    r = create(client, world, starts_at=far)
+    assert (r.status_code, r.json()) == (422, {"detail": "the event must start within a year"})
+    r = create(client, world, interest_slug="no_such_thing")
+    assert (r.status_code, r.json()) == (422, {"detail": "unknown interest: no_such_thing"})
+    assert create(client, world, title="  a ").status_code == 422
+    no_timezone = NEW_EVENT["starts_at"][:19]
+    assert create(client, world, starts_at=no_timezone).status_code == 422
+    assert create(client, world, interest_slug=None, description=None).status_code == 201
+
+
+def test_daily_creation_limit(client, world, monkeypatch):
+    monkeypatch.setattr(settings, "EVENT_CREATE_DAILY_LIMIT", 2)
+    world.user = world.new_user("Mei", is_student=True)
+    assert create(client, world).status_code == 201
+    assert create(client, world).status_code == 201
+    r = create(client, world)
+    assert r.status_code == 429
+    assert r.json() == {"detail": "you can create 2 events a day, try again tomorrow"}
+
+    # The limit is per user, and events older than 24 hours do not count.
+    other = world.new_user("Other")
+    mei, world.user = world.user, other
+    assert create(client, world).status_code == 201
+    world.conn.execute(
+        "update events set created_at = now() - interval '25 hours' where created_by = %s",
+        (mei["id"],),
+    )
+    world.user = mei
+    assert create(client, world).status_code == 201
+
+
+@pytest.mark.parametrize("role", ["creator", "moderator", "admin"])
+def test_staff_roles_have_no_limit_and_no_review(client, world, monkeypatch, role):
+    monkeypatch.setattr(settings, "EVENT_CREATE_DAILY_LIMIT", 1)
+    world.user = world.new_user("Organiser")
+    world.roles = {role}
+    for _ in range(3):
+        r = create(client, world)
+        assert r.status_code == 201, r.text
+        assert r.json()["status"] == "active"
+
+
+def test_report_is_saved_once_per_user(client, world):
+    world.user = world.new_user("Mei")
+    url = f"/events/{world.event_id}/report"
+    r = client.post(url, json={"reason": "  This is an advert, not an event. "})
+    assert r.status_code == 201, r.text
+    assert r.json() == {"event_id": str(world.event_id), "status": "received"}
+    row = world.conn.execute(
+        "select reporter_id, reason, status from reports where event_id = %s", (world.event_id,)
+    ).fetchone()
+    assert row == {
+        "reporter_id": world.user["id"],
+        "reason": "This is an advert, not an event.",
+        "status": "open",
+    }
+
+    r = client.post(url, json={"reason": "Reporting again"})
+    assert (r.status_code, r.json()) == (409, {"detail": "you have already reported this event"})
+    assert client.post(url, json={"reason": "no"}).status_code == 422
+    assert client.post(f"/events/{MISSING}/report", json={"reason": "Looks fake"}).status_code == 404
+    assert world.event_row()["status"] == "active"
+
+
+def test_cannot_report_your_own_event(client, world):
+    world.user = world.new_user("Mei", is_student=True)
+    event = create(client, world).json()
+    r = client.post(f"/events/{event['id']}/report", json={"reason": "Looks fake"})
+    assert (r.status_code, r.json()) == (409, {"detail": "you cannot report your own event"})
+
+
+def test_more_than_ten_reports_take_the_event_off_the_list(client, world):
+    world.reports(9)
+    url = f"/events/{world.event_id}"
+    world.user = world.new_user("Tenth")
+    assert client.post(f"{url}/report", json={"reason": "Looks fake"}).status_code == 201
+    assert world.event_row()["status"] == "active"  # 10 reports: still listed
+    assert [e["id"] for e in events(client, world)] == [str(world.event_id)]
+
+    world.user = world.new_user("Eleventh")
+    assert client.post(f"{url}/report", json={"reason": "Looks fake"}).status_code == 201
+    assert world.event_row()["status"] == "pending"
+    assert events(client, world) == []
+    assert client.post(f"{url}/join").status_code == 409
+    world.user = world.new_user("Twelfth")
+    r = client.post(f"{url}/report", json={"reason": "Looks fake"})
+    assert (r.status_code, r.json()) == (409, {"detail": "this event is not open right now"})
+
+
+def test_people_on_a_hidden_event_can_still_leave(client, world):
+    users = world.waiting_users(3)
+    world.user = users[0]
+    client.post(f"/events/{world.event_id}/match")
+    world.conn.execute("update events set status = 'pending' where id = %s", (world.event_id,))
+
+    assert client.post(f"/events/{world.event_id}/match").status_code == 409
+    assert client.get(f"/events/{world.event_id}/my-group").status_code == 200
+    assert client.post(f"/events/{world.event_id}/leave").json()["status"] == "left"
+
+
+def test_review_queue_needs_a_moderator(client, world):
+    world.user = world.new_user("Mei", is_student=True)
+    world.roles = {"creator"}
+    for call in (
+        lambda: client.get("/moderation/events"),
+        lambda: client.post(f"/moderation/events/{world.event_id}/approve"),
+        lambda: client.post(f"/moderation/events/{world.event_id}/reject"),
+    ):
+        r = call()
+        assert (r.status_code, r.json()) == (403, {"detail": "you do not have permission to do this"})
+    world.user = None
+    assert client.get("/moderation/events").status_code == 401
+
+
+def queue(client, world):
+    """This test's events in the review queue."""
+    r = client.get("/moderation/events")
+    assert r.status_code == 200, r.text
+    return [e for e in r.json() if e["interest"] and e["interest"]["slug"] == world.games]
+
+
+def test_review_queue_lists_pending_and_reported_events(client, world):
+    newcomer = world.new_user("Newcomer")
+    world.user = newcomer
+    pending = create(client, world).json()
+    world.reports(2)  # on world.event_id, which stays active
+    quiet = world.event("Nothing to see", world.games)
+    past = world.event("Last week", world.games, starts_at=datetime.now(timezone.utc) - timedelta(days=7))
+    world.reports(1, past)
+
+    world.user = world.new_user("Moderator")
+    world.roles = {"moderator"}
+    listed = queue(client, world)
+    assert [e["id"] for e in listed] == [pending["id"], str(world.event_id)]  # pending first
+    assert str(quiet) not in [e["id"] for e in listed]
+
+    first, second = listed
+    assert first["status"] == "pending" and first["reports"] == []
+    assert first["created_by"] == {"user_id": str(newcomer["id"]), "display_name": "Newcomer"}
+    assert second["status"] == "active" and second["created_by"] is None
+    assert [r["reason"] for r in second["reports"]] == ["Looks fake", "Looks fake"]
+    assert all(r["reporter_name"].startswith("reporter") for r in second["reports"])
+
+
+def test_approve_publishes_and_dismisses_the_reports(client, world):
+    world.reports(11)
+    world.conn.execute("update events set status = 'pending' where id = %s", (world.event_id,))
+    moderator = world.new_user("Moderator")
+    world.user, world.roles = moderator, {"admin"}
+
+    r = client.post(f"/moderation/events/{world.event_id}/approve")
+    assert r.status_code == 200, r.text
+    assert r.json() == {"event_id": str(world.event_id), "status": "active"}
+    assert queue(client, world) == []
+    rows = world.conn.execute(
+        "select distinct status, resolved_by, resolved_at is not null as resolved from reports"
+        " where event_id = %s",
+        (world.event_id,),
+    ).fetchall()
+    assert rows == [{"status": "dismissed", "resolved_by": moderator["id"], "resolved": True}]
+
+    # Back on the list; dismissed reports no longer count towards hiding it.
+    world.user, world.roles = world.new_user("Mei"), set()
+    assert [e["id"] for e in events(client, world)] == [str(world.event_id)]
+    r = client.post(f"/events/{world.event_id}/report", json={"reason": "Still looks fake"})
+    assert r.status_code == 201
+    assert world.event_row()["status"] == "active"
+
+
+def test_reject_removes_the_event(client, world):
+    creator = world.new_user("Newcomer")
+    world.user = creator
+    event = create(client, world).json()
+    world.reports(1, event["id"])
+
+    world.user, world.roles = world.new_user("Moderator"), {"moderator"}
+    r = client.post(f"/moderation/events/{event['id']}/reject")
+    assert r.json() == {"event_id": event["id"], "status": "rejected"}
+    assert queue(client, world) == []
+    assert client.post(f"/moderation/events/{MISSING}/reject").status_code == 404
+    status = world.conn.execute(
+        "select status from reports where event_id = %s", (event["id"],)
+    ).fetchone()["status"]
+    assert status == "actioned"
+
+    # Only the creator still sees it, marked as removed.
+    world.roles = set()
+    assert event["id"] not in [e["id"] for e in events(client, world)]
+    world.user = creator
+    mine = {e["id"]: e for e in events(client, world)}
+    assert mine[event["id"]]["status"] == "rejected"

@@ -74,3 +74,25 @@ create table if not exists reports (
 
 -- Sentence shown on the group card, built by services/matching.py.
 alter table event_groups add column if not exists why_you_match text;
+
+-- Community events (POST /events). created_by is null for seeded events. Only 'active' events
+-- are on the public list; 'pending' waits for a moderator (a new event from someone who is not
+-- trusted yet, or an event with too many open reports); 'rejected' was removed by a moderator.
+alter table events add column if not exists created_by uuid references users (id) on delete set null;
+alter table events add column if not exists status text not null default 'active'
+    check (status in ('active', 'pending', 'rejected'));
+
+create index if not exists events_created_by_idx on events (created_by, created_at);
+
+-- Report review (routers/moderation.py). Approving an event dismisses its open reports,
+-- rejecting it marks them actioned; only open reports count towards hiding an event.
+alter table reports add column if not exists status text not null default 'open'
+    check (status in ('open', 'dismissed', 'actioned'));
+alter table reports add column if not exists resolved_by uuid references users (id) on delete set null;
+alter table reports add column if not exists resolved_at timestamptz;
+
+-- One report per user per event, also after it was resolved.
+create unique index if not exists reports_one_per_event_idx
+    on reports (reporter_id, event_id)
+    where event_id is not null and reported_user_id is null and group_id is null;
+create index if not exists reports_event_open_idx on reports (event_id) where status = 'open';

@@ -16,6 +16,8 @@ Roles: an Auth0 Post-Login Action copies the user's roles into the access token
 (ROLES_CLAIM) and sets MFA_CLAIM when the login included a second factor. Guard an
 endpoint with `Depends(require_role("admin"))`. An admin account is refused on guarded
 endpoints unless its token says the login used multi-factor authentication.
+effective_roles() gives the roles of a caller for endpoints that are open to everyone but
+do more for some roles (creating events).
 """
 
 import logging
@@ -38,6 +40,7 @@ ROLES_CLAIM = "https://newcomer-hub/roles"
 MFA_CLAIM = "https://newcomer-hub/mfa"
 ADMIN_ROLE = "admin"
 MODERATOR_ROLE = "moderator"
+CREATOR_ROLE = "creator"  # no daily limit on creating events, published without review
 DEV_HEADER = "X-Dev-User"
 DEV_ROLES_HEADER = "X-Dev-Roles"
 DEV_NAME_MAX = 64
@@ -207,6 +210,14 @@ def caller_access(
         "roles": {r for r in roles if isinstance(r, str)} if isinstance(roles, list) else set(),
         "mfa": claims.get(MFA_CLAIM) is True,
     }
+
+
+def effective_roles(access: dict) -> set[str]:
+    """The roles that count for a caller_access result: admin only with an MFA login."""
+    roles = set(access["roles"])
+    if not access["mfa"]:
+        roles.discard(ADMIN_ROLE)
+    return roles
 
 
 def require_role(*allowed: str):

@@ -6,5 +6,7 @@ export const AUTH0_CLIENT_ID = env.VITE_AUTH0_CLIENT_ID || '';
 export const AUTH0_AUDIENCE = env.VITE_AUTH0_AUDIENCE || '';
 export const API_URL = (env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
 export const DEV_USER = (env.VITE_DEV_USER || '').trim();
+// Dev only, with VITE_DEV_USER: roles to act with, such as "moderator" or "creator,admin".
+export const DEV_ROLES = (env.VITE_DEV_ROLES || '').trim();
 
 export const AUTH0_CONFIGURED = Boolean(AUTH0_DOMAIN && AUTH0_CLIENT_ID);

@@ -1386,6 +1386,43 @@ code {
   background: var(--warn-bg);
   color: var(--warn-text);
 }
+/* Create-event and report forms; the moderation queue. */
+.event-textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+}
+.review-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+}
+.review-list .card + .card {
+  margin-top: 0;
+}
+.review h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.9rem;
+}
+.review-reports {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+.review-reports li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+.review .form-actions {
+  margin-top: 0.85rem;
+}
 .group-card {
   margin-top: 0.85rem;
   padding: 1rem;
