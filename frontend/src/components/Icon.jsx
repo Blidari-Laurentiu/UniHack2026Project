@@ -38,7 +38,13 @@ export const ArrowIcon = (props) => (
   </Svg>
 );
 
-export const UploadIcon = (props) => (
+export const LogoutIcon = (props) => (
+  <Svg {...props}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+  </Svg>
+);
+
+export const UploadIcon =(props) => (
   <Svg {...props}>
     <path d="M12 16V4M7 9l5-5 5 5M5 20h14" />
   </Svg>

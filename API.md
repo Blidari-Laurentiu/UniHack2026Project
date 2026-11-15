@@ -146,9 +146,10 @@ Use it to fill the neighbourhood dropdown and the median chart. In JSON, the key
 
 | Method | Path | Auth | Request | Response example | Owner |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/events?interest=&from=&to=` | Public | Query parameters, all optional: `interest` (slug), `from` (ISO datetime, default now, so past events are hidden) and `to` (ISO datetime) | `[Event]` (below), ordered by `starts_at` | B |
+| GET | `/events?interest=&from=&to=&mine=` | Public; JWT with `mine=true` | Query parameters, all optional: `interest` (slug), `from` (ISO datetime, default now, so past events are hidden), `to` (ISO datetime) and `mine` (`true`: only the events the caller is going to) | `[Event]` (below), ordered by `starts_at` | B |
 | POST | `/events` | JWT | `EventIn` (below) | 201 `Event`, with `status` `active` or `pending` | B |
 | POST | `/events/{id}/report` | JWT | `{"reason": "This is an advert, not an event."}` (5 to 500 characters) | 201 `{"event_id": "e100…01", "status": "received"}` | B |
+| DELETE | `/events/{id}` | JWT: the creator, or role `moderator` or `admin` | – | 204, no body | B |
 | POST | `/events/{id}/join` | JWT | – | `{"event_id": "e100…01", "status": "waiting"}` | B |
 | POST | `/events/{id}/leave` | JWT | – | `{"event_id": "e100…01", "status": "left"}`; 404 `{"detail": "you have not joined this event"}` | B |
 | POST | `/events/{id}/match` | JWT | – | `{"event_id": "e100…01", "groups": [Group], "unmatched_count": 0}` | B |
@@ -161,6 +162,8 @@ An unknown event id gives 404 `{"detail": "event not found"}`.
 - **Daily creation limit.** 3 events per user in any 24 hours (`EVENT_CREATE_DAILY_LIMIT`), then 429 `{"detail": "you can create 3 events a day, try again tomorrow"}`. The roles `creator`, `moderator` and `admin` have no limit.
 - **Report.** One report per user per event: 409 `you have already reported this event`, 409 `you cannot report your own event`. When an event has more than 10 open reports (the 11th), it becomes `pending` and leaves the list until a moderator reviews it.
 - **Events that are not `active`.** `GET /events` shows them only to their creator (`created_by_me` is `true`). Join, match and report on them give 409 `{"detail": "this event is not open right now"}`; leave and my-group still work.
+- **My events.** `GET /events?mine=true` keeps only the events where the caller's signup is `waiting` or `grouped`; the other filters and the rule above still apply. Without a login (or with an unverified email) it gives 401 `{"detail": "log in to see your events"}`.
+- **Remove.** `DELETE /events/{id}` deletes the event for good, with its signups and groups; its open reports are closed as `actioned`. Allowed for the event's creator, a `moderator` and an `admin` (signed in with MFA); the `creator` role alone does not count. Anyone else gets 403 `{"detail": "only the creator or a moderator can remove this event"}`. An event that has already started gives 409 `this event has already started`.
 - **Join.** Joining twice changes nothing. Joining again after leaving puts you at the back of the waiting list.
 - **Match.** Groups everyone who is `waiting` for the event (3 to 5 per group, longest-waiting first) and saves the groups. It returns only the groups made by this call; `unmatched_count` is how many people are still waiting. Fewer than 3 waiting gives `"groups": []`. Only someone on the event (`waiting` or `grouped`) can run it: anyone else gets 403 `{"detail": "join this event before matching"}`.
 - **Started events.** Join and match on an event that has already started give 409 `{"detail": "this event has already started"}`.

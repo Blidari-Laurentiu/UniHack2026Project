@@ -211,7 +211,12 @@ code {
   top: 0.5rem;
 }
 
-/* Top bar */
+/* Top bar. The labels are a third wider in Romanian than in English, so nothing here may
+   depend on the text fitting by luck. Each width has one planned layout (the media queries
+   are below, after .user-chip), sized for the widest case: Romanian, with the Moderation tab.
+   - under 840px: two rows. Brand and controls on the first, the tabs on the second.
+   - from 840px: one row that never wraps. If it is still too narrow, the user's name is cut
+     with an ellipsis first, then the tabs scroll sideways. */
 .topbar {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
@@ -223,11 +228,12 @@ code {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 0.75rem;
+  gap: 0.25rem 0.5rem;
   padding-block: 0.5rem;
 }
 .brand {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 0.5rem;
   min-height: 44px;
@@ -237,6 +243,10 @@ code {
   letter-spacing: -0.03em;
   text-decoration: none;
   white-space: nowrap;
+}
+/* On a phone the mark alone is the brand; the link keeps its aria-label. */
+.brand-name {
+  display: none;
 }
 .brand:hover {
   color: var(--text);
@@ -263,23 +273,34 @@ code {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+/* The tabs: on a phone they share the second row equally, in slightly smaller type. */
 .nav {
   display: flex;
-  gap: 0.25rem;
+  gap: 0.125rem;
   order: 3;
   width: 100%;
   overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar {
+  display: none;
 }
 .nav-link {
   display: inline-flex;
+  flex: 1 0 auto;
   align-items: center;
+  justify-content: center;
   min-height: 40px;
-  padding: 0.3rem 0.7rem;
+  padding: 0.3rem 0.35rem;
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font: 500 0.85rem var(--font-mono);
+  font: 500 0.8rem var(--font-mono);
   text-decoration: none;
   white-space: nowrap;
+}
+/* .nav scrolls, so it would clip a focus ring drawn outside the link. */
+.nav-link:focus-visible {
+  outline-offset: -2px;
 }
 .nav-link:hover {
   background: var(--tint);
@@ -296,6 +317,15 @@ code {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+/* Only the user chip gives way when the row is tight: its name is cut, the picture stays. */
+.auth > * {
+  flex: none;
+  white-space: nowrap;
+}
+.auth > .user-chip {
+  flex: 0 1000 auto;
+  min-width: calc(32px + 0.4rem + 2px);
 }
 .icon-btn {
   display: inline-grid;
@@ -384,6 +414,7 @@ code {
 }
 .user-chip-name {
   display: none;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -401,7 +432,21 @@ code {
     min-height: 44px;
   }
 }
-@media (min-width: 400px) {
+/* Top bar widths. Each step adds what the widest case (Romanian, Moderation tab) has room for. */
+@media (min-width: 480px) {
+  .brand-name {
+    display: inline;
+  }
+  .nav {
+    gap: 0.25rem;
+  }
+  .nav-link {
+    flex: none;
+    padding-inline: 0.7rem;
+    font-size: 0.85rem;
+  }
+}
+@media (min-width: 560px) {
   .brand-city {
     display: inline-block;
   }
@@ -410,13 +455,12 @@ code {
   .container {
     padding-inline: 1.5rem;
   }
-  .brand {
-    margin-right: 0.5rem;
-  }
-  .nav {
-    order: 0;
-    width: auto;
-    margin-right: auto;
+  /* The controls take what the brand leaves of the first row, so a long name is cut
+     instead of pushing them onto a row of their own. */
+  .auth {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: flex-end;
   }
   .user-chip-name {
     display: block;
@@ -426,6 +470,40 @@ code {
   }
   h2 {
     font-size: 1.2rem;
+  }
+}
+/* One row: brand, tabs, controls. The city plate and the name come back as room allows. */
+@media (min-width: 840px) {
+  .topbar-inner {
+    flex-wrap: nowrap;
+  }
+  .brand {
+    margin-right: 0.5rem;
+  }
+  .brand-city,
+  .user-chip-name {
+    display: none;
+  }
+  .nav {
+    order: 0;
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 0;
+    margin-right: auto;
+  }
+  /* The controls sit straight in the row, so the chip can shrink before the tabs do. */
+  .auth {
+    display: contents;
+  }
+}
+@media (min-width: 960px) {
+  .user-chip-name {
+    display: block;
+  }
+}
+@media (min-width: 1040px) {
+  .brand-city {
+    display: inline-block;
   }
 }
 
@@ -1224,6 +1302,43 @@ code {
   border-style: dashed;
   border-color: var(--edge);
   color: var(--muted);
+}
+/* All events / My events: a two-key switch above the filters, the chosen view in amber. */
+.event-views {
+  display: inline-flex;
+  max-width: 100%;
+  margin-bottom: 1rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.event-view {
+  min-height: 40px;
+  padding: 0.35rem 0.9rem;
+  border: 0;
+  border-left: 1px solid var(--edge);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.event-view:first-child {
+  border-left: 0;
+}
+.event-view:hover {
+  background: var(--tint);
+  color: var(--text);
+}
+.event-view[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.event-view:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 .filters {
   display: grid;

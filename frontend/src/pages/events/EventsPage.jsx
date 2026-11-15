@@ -1,6 +1,6 @@
 // Person B owns this folder: profile, event list with filters, join, match and group card.
 import { useState } from 'react';
-import { getInterests, listEvents } from '../../api.js';
+import { getInterests, getMe, listEvents } from '../../api.js';
 import { VerifyEmailNotice, useAuth } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import { useProfile } from '../../profile/ProfileContext.jsx';
@@ -27,14 +27,24 @@ export default function EventsPage() {
   const hasFilters = Boolean(filters.interest || filters.from || filters.to);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(null); // the event just created, for the notice
+  const [view, setView] = useState('all'); // 'all', or 'mine': the events this user is going to
+  const mine = canUse && view === 'mine';
 
   const interests = useApi(getInterests);
   const { profile } = useProfile();
+  // Moderators and admins (with MFA) get the Remove button on every card; the API checks again.
+  const me = useApi(() => (canUse ? getMe() : Promise.resolve(null)), [canUse]);
+  const roles = me.data?.roles || [];
+  const canModerate = roles.includes('moderator') || (roles.includes('admin') && me.data.mfa);
+  // The answer remembers which view it is for, so the other view's events never show under
+  // the new tab while it loads.
   const events = useApi(
-    () => listEvents(toQuery(filters)),
-    [canUse, filters.interest, filters.from, filters.to],
+    () => listEvents({ ...toQuery(filters), mine: mine || '' }).then((items) => ({ items, mine })),
+    [canUse, mine, filters.interest, filters.from, filters.to],
   );
-  const list = events.data || [];
+  const fresh = events.data?.mine === mine;
+  const list = fresh ? events.data.items : [];
+  const loading = events.loading || Boolean(events.data && !fresh);
 
   return (
     <>
@@ -65,6 +75,7 @@ export default function EventsPage() {
                 onCreated={(event) => {
                   setCreated(event);
                   setCreating(false);
+                  setView('all'); // the notice says "in the list below"; a new event is not in "mine"
                   events.reload();
                 }}
                 onCancel={() => setCreating(false)}
@@ -93,6 +104,22 @@ export default function EventsPage() {
       )}
 
       <section className="card">
+        {canUse && (
+          <div className="event-views" role="group" aria-label={t('view.label')}>
+            {['all', 'mine'].map((v) => (
+              <button
+                key={v}
+                type="button"
+                className="event-view"
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+              >
+                {t(`view.${v}`)}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="filters">
           <label className="field">
             <span className="field-label">{t('filter.interest')}</span>
@@ -132,10 +159,10 @@ export default function EventsPage() {
 
         <ErrorBox error={interests.error} onRetry={interests.reload} />
         <ErrorBox error={events.error} onRetry={events.reload} />
-        {events.loading && list.length === 0 && <p className="muted">{t('loadingEvents')}</p>}
-        {!events.loading && !events.error && list.length === 0 && (
+        {loading && list.length === 0 && <p className="muted">{t('loadingEvents')}</p>}
+        {!loading && !events.error && list.length === 0 && (
           <p className="muted">
-            {hasFilters ? t('noMatch') : t('noEvents')}
+            {hasFilters ? t('noMatch') : mine ? t('noMine') : t('noEvents')}
           </p>
         )}
 
@@ -146,12 +173,13 @@ export default function EventsPage() {
               event={ev}
               isAuthenticated={canUse}
               needsVerification={isAuthenticated && !canUse}
+              canModerate={canModerate}
               myId={profile?.user_id}
               onChanged={events.reload}
             />
           ))}
         </ul>
-        {list.length > 0 && <p className="small muted">{t('sample')}</p>}
+        {list.length > 0 && !mine && <p className="small muted">{t('sample')}</p>}
       </section>
     </>
   );

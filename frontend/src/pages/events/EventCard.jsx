@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMyGroup, joinEvent, leaveEvent, reportEvent, runMatch } from '../../api.js';
+import { getMyGroup, joinEvent, leaveEvent, removeEvent, reportEvent, runMatch } from '../../api.js';
 import { LoginButton } from '../../auth/index.js';
 import ErrorBox from '../../components/ErrorBox.jsx';
 import GroupCard from './GroupCard.jsx';
@@ -8,7 +8,14 @@ import { interestLabel, slotLabel, useT } from './strings.js';
 
 const MIN_GROUP = 3;
 
-export default function EventCard({ event, isAuthenticated, needsVerification, myId, onChanged }) {
+export default function EventCard({
+  event,
+  isAuthenticated,
+  needsVerification,
+  canModerate,
+  myId,
+  onChanged,
+}) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -20,6 +27,11 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
   const status = isAuthenticated ? event.my_status : null;
   // Anything but 'active' reaches only the event's creator: waiting for review, or removed.
   const open = event.status === 'active';
+  // The creator, moderators and admins can remove an event until it starts; the API checks again.
+  const canRemove =
+    isAuthenticated &&
+    (event.created_by_me || canModerate) &&
+    new Date(event.starts_at).getTime() > Date.now();
 
   // Load the group whenever this event shows the user as grouped.
   useEffect(() => {
@@ -66,6 +78,11 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
         setNotice({ waiting: result.unmatched_count });
       }
     });
+
+  const remove = () => {
+    if (!window.confirm(t('confirmRemove', event.title))) return;
+    act(() => removeEvent(event.id));
+  };
 
   async function sendReport(e) {
     e.preventDefault();
@@ -148,6 +165,12 @@ export default function EventCard({ event, isAuthenticated, needsVerification, m
           {isAuthenticated && open && !event.created_by_me && report === null && (
             <button type="button" className="btn btn-sm" onClick={() => setReport('')}>
               {t('report')}
+            </button>
+          )}
+
+          {canRemove && (
+            <button type="button" className="btn btn-sm btn-danger" onClick={remove} disabled={busy}>
+              {t('remove')}
             </button>
           )}
         </div>

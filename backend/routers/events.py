@@ -4,6 +4,7 @@ Anyone logged in can create an event (POST /events). Trusted creators (verified 
 people who already went out with a group, and the roles creator, moderator and admin) are
 published at once; everyone else waits for a moderator (routers/moderation.py). An event with
 more than REPORTS_BEFORE_REVIEW open reports goes back to 'pending' and off the list.
+An upcoming event can be deleted by its creator, a moderator or an admin (DELETE /events/{id}).
 """
 
 from datetime import datetime, timedelta, timezone
@@ -51,6 +52,7 @@ MEET_NOTE = "Meet at the entrance 30 minutes before."
 LOCAL_TZ = ZoneInfo("Europe/Bucharest")  # slots are on Timișoara's wall clock
 MAX_AHEAD = timedelta(days=365)
 STAFF_ROLES = {CREATOR_ROLE, MODERATOR_ROLE, ADMIN_ROLE}  # no daily limit, no review
+REMOVER_ROLES = {MODERATOR_ROLE, ADMIN_ROLE}  # can remove any event; a creator only their own
 # An active event with more open reports than this goes to 'pending' until a moderator looks.
 REPORTS_BEFORE_REVIEW = 10
 NOT_OPEN = "this event is not open right now"
@@ -240,14 +242,22 @@ def list_events(
     interest: str | None = Query(None, description="interest slug"),
     from_: datetime | None = Query(None, alias="from", description="default: now"),
     to: datetime | None = Query(None),
+    mine: bool = Query(False, description="only the events the caller is going to"),
     user: dict | None = Depends(optional_user),
     conn=Depends(get_conn),
 ):
+    if mine and user is None:
+        raise HTTPException(status_code=401, detail="log in to see your events")
     # Events that are waiting for review or were removed show only to their creator.
     where = [
         "e.starts_at >= coalesce(%(from)s::timestamptz, now())",
         "(e.status = 'active' or e.created_by = %(user_id)s::uuid)",
     ]
+    if mine:
+        where.append(
+            "exists (select 1 from event_signups s where s.event_id = e.id"
+            " and s.user_id = %(user_id)s::uuid and s.status in ('waiting', 'grouped'))"
+        )
     if to is not None:
         where.append("e.starts_at <= %(to)s")
     if interest:
@@ -345,6 +355,34 @@ def report_event(
         conn.execute("update events set status = 'pending' where id = %s", (event_id,))
     conn.commit()
     return ReportOut(event_id=event_id)
+
+
+@router.delete("/{event_id}", status_code=204)
+def remove_event(
+    event_id: UUID,
+    user: dict = Depends(current_user),
+    access: dict = Depends(caller_access),
+    conn=Depends(get_conn),
+):
+    """Delete an event for good: its creator, a moderator or an admin (with MFA).
+
+    Signups and groups go with it (on delete cascade). An event that has started stays: its
+    groups are what makes its people trusted creators (_has_attended).
+    """
+    event = _require_event(conn, event_id, lock=True)
+    if event["created_by"] != user["id"] and not effective_roles(access) & REMOVER_ROLES:
+        raise HTTPException(
+            status_code=403, detail="only the creator or a moderator can remove this event"
+        )
+    _require_upcoming(event)
+    # The reports outlive the event (event_id becomes null), so close the open ones first.
+    conn.execute(
+        "update reports set status = 'actioned', resolved_by = %s, resolved_at = now()"
+        " where event_id = %s and status = 'open'",
+        (user["id"], event_id),
+    )
+    conn.execute("delete from events where id = %s", (event_id,))
+    conn.commit()
 
 
 @router.post("/{event_id}/join", response_model=SignupOut)

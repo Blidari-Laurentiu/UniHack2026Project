@@ -37,7 +37,7 @@ function AuthControls() {
           dev
         </span>
       )}
-      <LogoutButton className="btn btn-sm" />
+      <LogoutButton iconOnly />
     </>
   );
 }
@@ -65,7 +65,7 @@ export default function Layout() {
         <div className="container topbar-inner">
           <NavLink to="/" className="brand" aria-label={t('brand.home')}>
             <TimiMark className="brand-mark" />
-            <span>{t('brand')}</span>
+            <span className="brand-name">{t('brand')}</span>
             <span className="brand-city">Timișoara</span>
           </NavLink>
           <nav className="nav" aria-label={t('nav.label')}>
